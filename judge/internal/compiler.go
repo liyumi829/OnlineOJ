@@ -58,6 +58,12 @@ func (c *Compiler) goCompile(ctx context.Context, storagePath string) (*CompileR
 		zap.L().Error("create compile-go-tempdir fail... ", zap.String("err", err.Error()))
 		return nil, err
 	}
+	var compileSuccess bool
+	defer func() {
+		if !compileSuccess {
+			os.RemoveAll(tempDir)
+		}
+	}()
 	src := filepath.Join(tempDir, "main.go") // 源文件
 	bin := filepath.Join(tempDir, "main")    // 可执行程序
 	if err := os.WriteFile(src, []byte(c.code), 0644); err != nil {
@@ -65,18 +71,19 @@ func (c *Compiler) goCompile(ctx context.Context, storagePath string) (*CompileR
 		return nil, err
 	}
 	// 写入文件成功
-	ctx, cancle := context.WithTimeout(ctx, 15*time.Second) // 获取下文取消
+	ctxCompile, cancle := context.WithTimeout(ctx, 15*time.Second) // 获取下文取消
 	defer cancle()
-	cmd := exec.CommandContext(ctx, "go", "build", "-trimpath", "-ldflags", "-s -w", "-o", bin, src) // 初始化子进程
-	stderr := &outputBuffer{}                                                                        // 缓冲区，用于重定向
-	cmd.Stderr = stderr                                                                              // 重定向标准错误
-	err = cmd.Run()                                                                                  // 创建子进程并且运行，父进程在同步等待子进程完成
-	if err != nil {                                                                                  // 编译发生错误
+	cmd := exec.CommandContext(ctxCompile, "go", "build", "-trimpath", "-ldflags", "-s -w", "-o", bin, src) // 初始化子进程
+	stderr := &outputBuffer{}                                                                               // 缓冲区，用于重定向
+	cmd.Stderr = stderr                                                                                     // 重定向标准错误
+	err = cmd.Run()                                                                                         // 创建子进程并且运行，父进程在同步等待子进程完成
+	if err != nil {                                                                                         // 编译发生错误
 		zap.L().Debug("compile fail...", zap.String("src", src), zap.String("error", err.Error()))
 		return &CompileResult{Stderr: stderr.String(), Status: "CE"}, err // 发生错误
 	}
 	// 编译成功
 	//zap.L().Debug("compile success...", zap.String("src", src), zap.String("bin", bin))
+	compileSuccess = true
 	return &CompileResult{BinPath: bin, Status: "OK"}, nil
 }
 
@@ -86,6 +93,12 @@ func (c *Compiler) cppCompile(ctx context.Context, storagePath string) (*Compile
 		zap.L().Error("create compile-cpp-tempdir fail... ", zap.String("err", err.Error()))
 		return nil, err
 	}
+	var compileSuccess bool
+	defer func() {
+		if !compileSuccess {
+			os.RemoveAll(tempDir)
+		}
+	}()
 	src := filepath.Join(tempDir, "main.cpp") // 源文件
 	bin := filepath.Join(tempDir, "main")     // 可执行程序
 	if err := os.WriteFile(src, []byte(c.code), 0644); err != nil {
@@ -93,18 +106,19 @@ func (c *Compiler) cppCompile(ctx context.Context, storagePath string) (*Compile
 		return nil, err
 	}
 	// 写入文件成功
-	ctx, cancle := context.WithTimeout(ctx, 15*time.Second) // 获取下文取消
+	ctxCompile, cancle := context.WithTimeout(ctx, 15*time.Second) // 获取一个子Context运行命令行
 	defer cancle()
 	// "g++", "g++", "-o", PathSpliceUtil::Exe(filename).c_str(),PathSpliceUtil::Src(filename).c_str(), "-D", "COMPILE_ONLINE" , "-std=c++17"
-	cmd := exec.CommandContext(ctx, "g++", "-o", bin, src, "-D", "COMPILE_ONLINE", "-std=c++17") // 初始化子进程
-	stderr := &outputBuffer{}                                                                    // 缓冲区，用于重定向
-	cmd.Stderr = stderr                                                                          // 重定向标准错误
-	err = cmd.Run()                                                                              // 创建子进程并且运行
-	if err != nil {                                                                              // 编译发生错误
+	cmd := exec.CommandContext(ctxCompile, "g++", "-o", bin, src, "-D", "COMPILE_ONLINE", "-std=c++17") // 初始化子进程
+	stderr := &outputBuffer{}                                                                           // 缓冲区，用于重定向
+	cmd.Stderr = stderr                                                                                 // 重定向标准错误
+	err = cmd.Run()                                                                                     // 创建子进程并且运行
+	if err != nil {                                                                                     // 编译发生错误
 		zap.L().Debug("compile fail...", zap.String("src", src), zap.String("error", err.Error()))
 		return &CompileResult{Stderr: stderr.String(), Status: "CE"}, err // 发生错误
 	}
 	// 编译成功
 	//zap.L().Debug("compile success...", zap.String("src", src), zap.String("bin", bin))
+	compileSuccess = true
 	return &CompileResult{BinPath: bin, Status: "OK"}, nil
 }
