@@ -17,10 +17,11 @@ func TestInitLogger_DebugMode(t *testing.T) {
 		Id:           1001,
 		InstanceName: "test_debug",
 		Mode:         "debug",
+		StoragePath:  "",
 	}
 
 	// 初始化
-	initLogger(config)
+	InitLogger(config)
 
 	// 验证全局 logger 不为空
 	if logger == nil {
@@ -42,10 +43,11 @@ func TestInitLogger_ProdMode(t *testing.T) {
 		Id:           2001,
 		InstanceName: "test_prod",
 		Mode:         "prod",
+		StoragePath:  "../../logs",
 	}
 
 	// 初始化
-	initLogger(config)
+	InitLogger(config)
 
 	if logger == nil {
 		t.Fatal("prod 模式下 logger 初始化失败，logger 为 nil")
@@ -66,7 +68,7 @@ func TestInitLogger_ProdMode(t *testing.T) {
 	t.Log("✅ prod 模式日志器测试通过\n")
 }
 
-// 测试3：不同 Id & 不同实例名称// initLogger 初始化的是全局logger
+// 测试3：不同 Id & 不同实例名称// InitLogger 初始化的是全局logger
 // 只有最后一个实例其效果
 func TestInitLogger_MultiInstance(t *testing.T) {
 	testCases := []struct {
@@ -87,6 +89,7 @@ func TestInitLogger_MultiInstance(t *testing.T) {
 				Id:           3002,
 				InstanceName: "multi_instance_2",
 				Mode:         "prod",
+				StoragePath:  "../../logs",
 			},
 		},
 	}
@@ -94,7 +97,7 @@ func TestInitLogger_MultiInstance(t *testing.T) {
 	for _, tc := range testCases {
 		config := tc.config
 		t.Run(tc.name, func(t *testing.T) {
-			initLogger(config)
+			InitLogger(config)
 			if logger == nil {
 				t.Fatal("logger 初始化失败")
 			}
@@ -113,7 +116,7 @@ func TestInitLogger_DefaultMode(t *testing.T) {
 		Mode:         "", // 空，走默认 debug
 	}
 
-	initLogger(config)
+	InitLogger(config)
 
 	if logger == nil {
 		t.Fatal("默认模式 logger 初始化失败")
@@ -133,7 +136,7 @@ func TestZapGlobalLogger(t *testing.T) {
 		Mode:         "debug",
 	}
 
-	initLogger(config)
+	InitLogger(config)
 
 	// 使用全局 logger
 	zap.L().Info("通过 zap.L() 输出日志")
@@ -148,8 +151,9 @@ func TestLogger_Rotate_DeleteOldLog(t *testing.T) {
 		Id:           8888,
 		InstanceName: "check_rotate_delete",
 		Mode:         "prod",
+		StoragePath:  "../../logs",
 	}
-	initLogger(config)
+	InitLogger(config)
 
 	logDir := "../../logs"
 	instanceDir := filepath.Join(logDir, config.InstanceName)

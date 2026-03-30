@@ -21,15 +21,16 @@ type Config struct {
 	Id           uint64 // 唯一标识符
 	InstanceName string // 实例名称 compiler/server
 	Mode         string // 运行模式 prod/debug 默认运行模式 debug
+	StoragePath  string // 存储路径 如果是debug 不填即可
 }
 
-// initLogger 初始化全局日志器
+// InitLogger 初始化全局日志器
 // 参数:
 //
 //	instanceName: 实例名称。为每一个执行程序构建唯一的实例名称的日志文件
 //
 // 返回: 无
-func initLogger(config Config) {
+func InitLogger(config Config) {
 	var level zapcore.Level    // 日志等级
 	if config.Mode == "prod" { // 如果项目是生产环境
 		level = zap.InfoLevel // 只打印Info以上的信息
@@ -53,7 +54,7 @@ func initLogger(config Config) {
 	// encoder := zapcore.NewJSONEncoder(encoderConfig) // 创建编码器 -- 在下面生产环境 Json、开发环境 Console
 	var core zapcore.Core      // zap日志库的核心接口
 	if config.Mode == "prod" { // 生产环境级别
-		logDir := "../../logs"                                         // 写入的目录路径
+		logDir := config.StoragePath                                   // 写入的目录路径
 		_ = os.Mkdir(filepath.Join(logDir, config.InstanceName), 0755) // 创建目录
 		lumberLogger := &lumberjack.Logger{
 			Filename:   filepath.Join(logDir, config.InstanceName, strconv.FormatUint(config.Id, 10)+".log"), // 日志文件
