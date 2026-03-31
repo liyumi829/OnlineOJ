@@ -2,6 +2,7 @@ package pkg
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -23,16 +24,16 @@ func TestInitLogger_DebugMode(t *testing.T) {
 	// 初始化
 	InitLogger(config)
 
-	// 验证全局 logger 不为空
-	if logger == nil {
-		t.Fatal("debug 模式下 logger 初始化失败，logger 为 nil")
+	// 验证全局 Logger 不为空
+	if Logger == nil {
+		t.Fatal("debug 模式下 Logger 初始化失败，logger 为 nil")
 	}
 
 	// 测试输出不同级别日志
-	logger.Debug("debug 日志测试")
-	logger.Info("info 日志测试")
-	logger.Warn("warn 日志测试")
-	logger.Error("error 日志测试")
+	Logger.Debug("debug 日志测试")
+	Logger.Info("info 日志测试")
+	Logger.Warn("warn 日志测试")
+	Logger.Error("error 日志测试")
 
 	t.Log("✅ debug 模式日志器测试通过\n")
 }
@@ -49,14 +50,14 @@ func TestInitLogger_ProdMode(t *testing.T) {
 	// 初始化
 	InitLogger(config)
 
-	if logger == nil {
-		t.Fatal("prod 模式下 logger 初始化失败，logger 为 nil")
+	if Logger == nil {
+		t.Fatal("prod 模式下 Logger 初始化失败，logger 为 nil")
 	}
 
 	// 生产环境只输出 Info 及以上
-	logger.Debug("这条 debug 日志不会输出")
-	logger.Info("prod info 日志测试")
-	logger.Error("prod error 日志测试")
+	Logger.Debug("这条 debug 日志不会输出")
+	Logger.Info("prod info 日志测试")
+	Logger.Error("prod error 日志测试")
 
 	// 检查日志目录是否创建
 	logDir := "../../logs"
@@ -98,10 +99,10 @@ func TestInitLogger_MultiInstance(t *testing.T) {
 		config := tc.config
 		t.Run(tc.name, func(t *testing.T) {
 			InitLogger(config)
-			if logger == nil {
-				t.Fatal("logger 初始化失败")
+			if Logger == nil {
+				t.Fatal("Logger 初始化失败")
 			}
-			logger.Info("多实例测试日志")
+			Logger.Info("多实例测试日志")
 		})
 	}
 
@@ -118,12 +119,12 @@ func TestInitLogger_DefaultMode(t *testing.T) {
 
 	InitLogger(config)
 
-	if logger == nil {
-		t.Fatal("默认模式 logger 初始化失败")
+	if Logger == nil {
+		t.Fatal("默认模式 Logger 初始化失败")
 	}
 
-	logger.Debug("默认模式 debug 日志")
-	logger.Info("默认模式 info 日志")
+	Logger.Debug("默认模式 debug 日志")
+	Logger.Info("默认模式 info 日志")
 
 	t.Log("✅ 默认模式测试通过\n")
 }
@@ -138,7 +139,7 @@ func TestZapGlobalLogger(t *testing.T) {
 
 	InitLogger(config)
 
-	// 使用全局 logger
+	// 使用全局 Logger
 	zap.L().Info("通过 zap.L() 输出日志")
 	zap.L().Error("通过 zap.L() 输出错误日志")
 
@@ -162,9 +163,9 @@ func TestLogger_Rotate_DeleteOldLog(t *testing.T) {
 	// 写入大量日志触发切割
 	bigLog := bytes.Repeat([]byte("X"), 1024) // 1KB
 	for i := 0; i < 1300; i++ {
-		logger.Info("test", zap.ByteString("data", bigLog))
+		Logger.Info("test", zap.ByteString("data", bigLog))
 	}
-	_ = logger.Sync()
+	_ = Logger.Sync()
 
 	// 查看目录里的文件
 	files, _ := os.ReadDir(instanceDir)
@@ -172,12 +173,13 @@ func TestLogger_Rotate_DeleteOldLog(t *testing.T) {
 
 	// ====================== 修复点：等待后台压缩 ======================
 	// lumberjack 压缩是异步的，必须等 200~500ms 才能完成
-	time.Sleep(1500 * time.Millisecond)
+	time.Sleep(5 * time.Second)
 	// =================================================================
 
 	for _, f := range files {
 		name := f.Name()
 		// 检查是否存在 已切割但未被删除的 .log 旧文件
+		fmt.Println(name)
 		if name != "8888.log" && strings.HasSuffix(name, ".log") {
 			hasUncompressedOldLog = true
 		}

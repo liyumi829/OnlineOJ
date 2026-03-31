@@ -3,7 +3,7 @@ package compile
 import (
 	"context"
 	"fmt"
-	"online---oj/judge/internal/common"
+	"online-oj/judge/internal/common"
 	"os"
 	"os/exec"
 	"path/filepath"

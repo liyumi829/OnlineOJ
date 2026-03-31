@@ -12,7 +12,10 @@ bin-release/
 *.air
 *.ipa
 *.apk
-
+build/
+logs/*.log
+logs/**/*log.s
+data/temp
 # Project files, i.e. `.project`, `.actionScriptProperties` and `.flexProperties`
 # should NOT be excluded as they contain compiler settings and other important
 # information for Eclipse / Flash Builder.

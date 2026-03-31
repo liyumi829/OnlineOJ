@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"online---oj/judge/internal/common"
+	"online-oj/judge/internal/common"
 	"os"
 	"os/exec"
 	"strings"

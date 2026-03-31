@@ -12,7 +12,7 @@ import (
 
 // 利用zap和lumberjack实现日志模块
 
-var logger *zap.Logger // 全局日志器
+var Logger *zap.Logger // 全局日志器
 
 // var mode = flag.String("mode", "debug", "run mode -- prod/debug") // 设置运行模式 -- 交给外部传入
 
@@ -21,7 +21,7 @@ type Config struct {
 	Id           uint64 // 唯一标识符
 	InstanceName string // 实例名称 compiler/server
 	Mode         string // 运行模式 prod/debug 默认运行模式 debug
-	StoragePath  string // 存储路径 如果是debug 不填即可
+	StoragePath  string // 存储路径 如果是debug 不填即可，如果不填的prod模式，默认在当前工作路径下
 }
 
 // InitLogger 初始化全局日志器
@@ -41,7 +41,7 @@ func InitLogger(config Config) {
 	encoderConfig := zapcore.EncoderConfig{
 		TimeKey:        "time",
 		LevelKey:       "level",
-		NameKey:        "logger",
+		NameKey:        "Logger",
 		CallerKey:      "caller",                      // 哪一个文件哪一行
 		MessageKey:     "msg",                         // 日志内容
 		StacktraceKey:  "stack",                       // 调用栈
@@ -58,7 +58,7 @@ func InitLogger(config Config) {
 		_ = os.Mkdir(filepath.Join(logDir, config.InstanceName), 0755) // 创建目录
 		lumberLogger := &lumberjack.Logger{
 			Filename:   filepath.Join(logDir, config.InstanceName, strconv.FormatUint(config.Id, 10)+".log"), // 日志文件
-			MaxSize:    128,                                                                                  // 单个文件不超过128MB
+			MaxSize:    1,                                                                                    // 单个文件不超过128MB
 			MaxBackups: 30,                                                                                   //最多保存30个日志文件
 			MaxAge:     7,                                                                                    // 最多保存七天
 			Compress:   true,                                                                                 // 压缩旧日志为gz
@@ -73,9 +73,9 @@ func InitLogger(config Config) {
 		consoleWriteSyncer := zapcore.AddSync(os.Stdout)           // 绑定标准输出日志写入器到zap
 		core = zapcore.NewCore(consoleEncoder, consoleWriteSyncer, level)
 	}
-	logger = zap.New(core,
+	Logger = zap.New(core,
 		zap.AddCaller(),                   // 显示行号
 		zap.AddStacktrace(zap.ErrorLevel)) // Error以上显示调用堆栈
 	// 全局logger创建完成
-	zap.ReplaceGlobals(logger) // 替换全局日志器，可使用zap.L()调用
+	zap.ReplaceGlobals(Logger) // 替换全局日志器，可使用zap.L()调用
 }

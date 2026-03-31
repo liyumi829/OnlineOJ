@@ -3,7 +3,7 @@ package compile
 import (
 	"context"
 	"fmt"
-	pkg "online---oj/pkg/logger"
+	pkg "online-oj/pkg/logger"
 	"testing"
 	"time"
 )
@@ -348,4 +348,4 @@ int main() {
 // BenchmarkCompiler_Cpp_Large-4                  4         276858384 ns/op
 // BenchmarkCompiler_Cpp_Large-4                  4         273941744 ns/op
 // PASS
-// ok      online---oj/judge/internal      51.834s
+// ok      online-oj/judge/internal      51.834s

@@ -2,8 +2,8 @@ package run
 
 import (
 	"context"
-	"online---oj/judge/internal/compile"
-	pkg "online---oj/pkg/logger"
+	"online-oj/judge/internal/compile"
+	pkg "online-oj/pkg/logger"
 	"os"
 	"testing"
 	"time"

@@ -1,0 +1,20 @@
+syntax = "proto3";
+package compileandrun;
+
+option go_package = "./execute;execute";
+
+service CompileAndRun {
+  rpc ExecuteCode (ExecuteRequest) returns (ExecuteResponse) {}
+}
+
+message ExecuteRequest {
+  string code = 1; // 用户代码
+  int64 cpuLimit = 2; // CPU限制
+  int64 memoLimit = 3; // 内存限制
+}
+
+message ExecuteResponse {
+  string status = 1; // 状态
+  string stdout = 2; // 标准输出
+  string stderr = 3; // 标准错误
+}
