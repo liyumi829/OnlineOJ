@@ -1,8 +1,0 @@
-{"level":"INFO","time":"2026-03-31T16:04:39.160+0800","caller":"run/runner.go:33","msg":"../temp/compile-go-284511947/main"}
-{"level":"INFO","time":"2026-03-31T16:04:39.232+0800","caller":"run/runner.go:33","msg":"../temp/compile-go-3315807706/main"}
-{"level":"INFO","time":"2026-03-31T16:04:39.358+0800","caller":"run/runner.go:33","msg":"../temp/compile-go-2953648161/main"}
-{"level":"INFO","time":"2026-03-31T16:04:49.631+0800","caller":"run/runner.go:33","msg":"../temp/compile-cpp-3474167635/main"}
-{"level":"INFO","time":"2026-03-31T16:04:49.675+0800","caller":"run/runner.go:33","msg":"../temp/compile-cpp-2090830715/main"}
-{"level":"INFO","time":"2026-03-31T16:04:50.398+0800","caller":"run/runner.go:33","msg":"../temp/compile-cpp-1056522223/main"}
-{"level":"INFO","time":"2026-03-31T16:04:50.608+0800","caller":"run/runner.go:33","msg":"../temp/compile-go-2143260668/main"}
-{"level":"INFO","time":"2026-03-31T16:04:50.904+0800","caller":"run/runner.go:33","msg":"../temp/compile-cpp-3379293625/main"}
