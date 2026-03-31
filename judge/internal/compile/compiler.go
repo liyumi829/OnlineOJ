@@ -1,8 +1,9 @@
-package internal
+package compile
 
 import (
 	"context"
 	"fmt"
+	"online---oj/judge/internal/common"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -21,8 +22,8 @@ const (
 
 // 编译者
 type Compiler struct {
-	codeType uint16 // 代码的类型
-	code     string // 完整代码
+	CodeType uint16 // 代码的类型
+	Code     string // 完整代码
 }
 
 // 编译结果
@@ -39,14 +40,14 @@ type CompileResult struct {
 //
 // 返回值: 编译的文件名/返回空说明编译失败
 func (c *Compiler) Compile(ctx context.Context, storagePath string) (*CompileResult, error) {
-	switch c.codeType {
+	switch c.CodeType {
 	case GoType:
 		return c.goCompile(ctx, storagePath)
 	case CppType:
 		return c.cppCompile(ctx, storagePath)
 	default:
-		zap.L().Error("unkown code type")
-		return nil, fmt.Errorf("unkown code type")
+		zap.L().Error("unkown Code type")
+		return nil, fmt.Errorf("unkown Code type")
 	}
 }
 
@@ -66,7 +67,7 @@ func (c *Compiler) goCompile(ctx context.Context, storagePath string) (*CompileR
 	}()
 	src := filepath.Join(tempDir, "main.go") // 源文件
 	bin := filepath.Join(tempDir, "main")    // 可执行程序
-	if err := os.WriteFile(src, []byte(c.code), 0644); err != nil {
+	if err := os.WriteFile(src, []byte(c.Code), 0644); err != nil {
 		zap.L().Error("write file fail...", zap.String("err", err.Error()), zap.String("src", src))
 		return nil, err
 	}
@@ -74,7 +75,7 @@ func (c *Compiler) goCompile(ctx context.Context, storagePath string) (*CompileR
 	ctxCompile, cancle := context.WithTimeout(ctx, 15*time.Second) // 获取下文取消
 	defer cancle()
 	cmd := exec.CommandContext(ctxCompile, "go", "build", "-trimpath", "-ldflags", "-s -w", "-o", bin, src) // 初始化子进程
-	stderr := &outputBuffer{}                                                                               // 缓冲区，用于重定向
+	stderr := &common.OutputBuffer{}                                                                        // 缓冲区，用于重定向
 	cmd.Stderr = stderr                                                                                     // 重定向标准错误
 	err = cmd.Run()                                                                                         // 创建子进程并且运行，父进程在同步等待子进程完成
 	if err != nil {                                                                                         // 编译发生错误
@@ -101,7 +102,7 @@ func (c *Compiler) cppCompile(ctx context.Context, storagePath string) (*Compile
 	}()
 	src := filepath.Join(tempDir, "main.cpp") // 源文件
 	bin := filepath.Join(tempDir, "main")     // 可执行程序
-	if err := os.WriteFile(src, []byte(c.code), 0644); err != nil {
+	if err := os.WriteFile(src, []byte(c.Code), 0644); err != nil {
 		zap.L().Error("write file fail...", zap.String("err", err.Error()), zap.String("src", src))
 		return nil, err
 	}
@@ -110,7 +111,7 @@ func (c *Compiler) cppCompile(ctx context.Context, storagePath string) (*Compile
 	defer cancle()
 	// "g++", "g++", "-o", PathSpliceUtil::Exe(filename).c_str(),PathSpliceUtil::Src(filename).c_str(), "-D", "COMPILE_ONLINE" , "-std=c++17"
 	cmd := exec.CommandContext(ctxCompile, "g++", "-o", bin, src, "-D", "COMPILE_ONLINE", "-std=c++17") // 初始化子进程
-	stderr := &outputBuffer{}                                                                           // 缓冲区，用于重定向
+	stderr := &common.OutputBuffer{}                                                                    // 缓冲区，用于重定向
 	cmd.Stderr = stderr                                                                                 // 重定向标准错误
 	err = cmd.Run()                                                                                     // 创建子进程并且运行
 	if err != nil {                                                                                     // 编译发生错误

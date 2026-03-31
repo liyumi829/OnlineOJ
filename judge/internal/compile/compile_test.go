@@ -1,4 +1,4 @@
-package internal
+package compile
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-var path = "./temp"
+var path = "../temp"
 
 //基准测试结果：
 
@@ -49,8 +49,8 @@ func main() {
 }
 `
 	compiler := Compiler{
-		codeType: GoType,
-		code:     goCode,
+		CodeType: GoType,
+		Code:     goCode,
 	}
 
 	// 执行编译
@@ -86,8 +86,8 @@ func main(
 }
 `
 	compiler := Compiler{
-		codeType: GoType,
-		code:     badGoCode,
+		CodeType: GoType,
+		Code:     badGoCode,
 	}
 
 	result, err := compiler.Compile(ctx, path)
@@ -123,8 +123,8 @@ int main() {
 }
 `
 	compiler := Compiler{
-		codeType: CppType,
-		code:     cppCode,
+		CodeType: CppType,
+		Code:     cppCode,
 	}
 
 	result, err := compiler.Compile(ctx, path)
@@ -159,8 +159,8 @@ int main() {
 }
 `
 	compiler := Compiler{
-		codeType: CppType,
-		code:     badCppCode,
+		CodeType: CppType,
+		Code:     badCppCode,
 	}
 
 	result, err := compiler.Compile(ctx, path)
@@ -185,10 +185,10 @@ int main() {
 // 1. 极简 Go 代码（最快编译）
 // ------------------------------
 func BenchmarkCompiler_Go_Minimal(b *testing.B) {
-	code := `package main;func main(){}`
+	Code := `package main;func main(){}`
 	b.ResetTimer()
 	for b.Loop() {
-		c := Compiler{codeType: GoType, code: code}
+		c := Compiler{CodeType: GoType, Code: Code}
 		res, _ := c.Compile(context.Background(), path)
 		if res.Status != "OK" {
 			b.Fatal("fail")
@@ -200,7 +200,7 @@ func BenchmarkCompiler_Go_Minimal(b *testing.B) {
 // 2. 标准 Go 代码（最常用）
 // ------------------------------
 func BenchmarkCompiler_Go_Normal(b *testing.B) {
-	code := `
+	Code := `
 package main
 import "fmt"
 func main() {
@@ -209,7 +209,7 @@ func main() {
 `
 	b.ResetTimer()
 	for b.Loop() {
-		c := Compiler{codeType: GoType, code: code}
+		c := Compiler{CodeType: GoType, Code: Code}
 		res, _ := c.Compile(context.Background(), path)
 		if res.Status != "OK" {
 			b.Fatal("fail")
@@ -221,7 +221,7 @@ func main() {
 // 3. 大型 Go 代码（测试压力编译）
 // ------------------------------
 func BenchmarkCompiler_Go_Large(b *testing.B) {
-	code := `
+	Code := `
 package main
 import "fmt"
 func f1(){fmt.Print(1)}
@@ -239,7 +239,7 @@ func main() {
 `
 	b.ResetTimer()
 	for b.Loop() {
-		c := Compiler{codeType: GoType, code: code}
+		c := Compiler{CodeType: GoType, Code: Code}
 		res, _ := c.Compile(context.Background(), path)
 		if res.Status != "OK" {
 			b.Fatal("fail")
@@ -251,10 +251,10 @@ func main() {
 // 4. 极简 C++ 代码
 // ------------------------------
 func BenchmarkCompiler_Cpp_Minimal(b *testing.B) {
-	code := `int main(){return 0;}`
+	Code := `int main(){return 0;}`
 	b.ResetTimer()
 	for b.Loop() {
-		c := Compiler{codeType: CppType, code: code}
+		c := Compiler{CodeType: CppType, Code: Code}
 		res, _ := c.Compile(context.Background(), path)
 		if res.Status != "OK" {
 			b.Fatal("fail")
@@ -266,7 +266,7 @@ func BenchmarkCompiler_Cpp_Minimal(b *testing.B) {
 // 5. 标准 C++ 代码
 // ------------------------------
 func BenchmarkCompiler_Cpp_Normal(b *testing.B) {
-	code := `
+	Code := `
 #include <iostream>
 using namespace std;
 int main() {
@@ -276,7 +276,7 @@ int main() {
 `
 	b.ResetTimer()
 	for b.Loop() {
-		c := Compiler{codeType: CppType, code: code}
+		c := Compiler{CodeType: CppType, Code: Code}
 		res, _ := c.Compile(context.Background(), path)
 		if res.Status != "OK" {
 			b.Fatal("fail")
@@ -288,7 +288,7 @@ int main() {
 // 6. 大型 C++ 代码（多函数、压力）
 // ------------------------------
 func BenchmarkCompiler_Cpp_Large(b *testing.B) {
-	code := `
+	Code := `
 #include <iostream>
 using namespace std;
 void f1(){cout<<1;}
@@ -303,7 +303,7 @@ int main() {
 `
 	b.ResetTimer()
 	for b.Loop() {
-		c := Compiler{codeType: CppType, code: code}
+		c := Compiler{CodeType: CppType, Code: Code}
 		res, _ := c.Compile(context.Background(), path)
 		if res.Status != "OK" {
 			b.Fatal("fail")

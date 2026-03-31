@@ -1,9 +1,10 @@
-package internal
+package run
 
 import (
 	"context"
 	"errors"
 	"fmt"
+	"online---oj/judge/internal/common"
 	"os"
 	"os/exec"
 	"strings"
@@ -39,8 +40,8 @@ func (r *Runner) runSandboxed(ctx context.Context) (*RunResult, error) {
 	defer cancle()                                         // 确保资源释放
 	cmd := exec.CommandContext(ctxRun, r.Bin)              // 通过绝对路径找到可执行程序
 
-	stdout := &outputBuffer{} // 完成重定向
-	stderr := &outputBuffer{}
+	stdout := &common.OutputBuffer{} // 完成重定向
+	stderr := &common.OutputBuffer{}
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
 	// 设置命名空间和用户映射 由于没有权限，更优的做法是利用docker
@@ -109,7 +110,7 @@ func (r *Runner) runSandboxed(ctx context.Context) (*RunResult, error) {
 	// 退出说明数据已经写好了
 	res.Stdout = stdout.String()
 	res.Stderr = stderr.String()
-	if len(stdout.buffer) >= maxOutPut || len(stderr.buffer) >= maxOutPut {
+	if len(stdout.Buffer) >= common.MaxOutPut || len(stderr.Buffer) >= common.MaxOutPut {
 		res.Status = "OLE"
 	}
 	zap.L().Debug("return a RunResult")

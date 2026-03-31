@@ -1,7 +1,8 @@
-package internal
+package run
 
 import (
 	"context"
+	"online---oj/judge/internal/compile"
 	pkg "online---oj/pkg/logger"
 	"os"
 	"testing"
@@ -13,7 +14,7 @@ func init() {
 		Id:           1001,
 		InstanceName: "run-1",
 		Mode:         "prod",
-		StoragePath:  "../../logs",
+		StoragePath:  "../../../logs",
 	}
 	pkg.InitLogger(config)
 }
@@ -21,7 +22,7 @@ func init() {
 // TestCompiler 测试编译器功能
 func TestCompilerAndRun(t *testing.T) {
 	// 创建存储路径
-	path := "./temp"
+	path := "../temp"
 	if err := os.MkdirAll(path, 0755); err != nil {
 		t.Fatalf("创建存储目录失败: %v", err)
 	}
@@ -44,7 +45,7 @@ func main() {
 	fmt.Println("This is a test program")
 }
 `
-	compiler := &Compiler{codeType: GoType, code: goSuccessCode}
+	compiler := &compile.Compiler{CodeType: compile.GoType, Code: goSuccessCode}
 	compileResult, err := compiler.Compile(context.Background(), path)
 	if err != nil || compileResult.Status != "OK" {
 		t.Logf("编译结果: Status=%s, Stderr=%s, Error=%v", compileResult.Status, compileResult.Stderr, err)
@@ -74,7 +75,7 @@ func main() {
 	_ = a[100] // 索引越界，触发 panic
 }
 `
-	compiler = &Compiler{codeType: GoType, code: goPanicCode}
+	compiler = &compile.Compiler{CodeType: compile.GoType, Code: goPanicCode}
 	compileResult, err = compiler.Compile(context.Background(), path)
 	if err != nil || compileResult.Status != "OK" {
 		t.Logf("编译结果: Status=%s, Stderr=%s, Error=%v", compileResult.Status, compileResult.Stderr, err)
@@ -103,7 +104,7 @@ func main() {
 	fmt.Println("Hello" // 缺少右括号，语法错误
 }
 `
-	compiler = &Compiler{codeType: GoType, code: goSyntaxErrorCode}
+	compiler = &compile.Compiler{CodeType: compile.GoType, Code: goSyntaxErrorCode}
 	compileResult, err = compiler.Compile(context.Background(), path)
 	if err != nil || compileResult.Status != "OK" {
 		t.Logf("编译结果: Status=%s, Stderr=%s", compileResult.Status, compileResult.Stderr)
@@ -123,7 +124,7 @@ func main() {
 	}
 }
 `
-	compiler = &Compiler{codeType: GoType, code: goTimeoutCode}
+	compiler = &compile.Compiler{CodeType: compile.GoType, Code: goTimeoutCode}
 	compileResult, err = compiler.Compile(context.Background(), path)
 	if err != nil || compileResult.Status != "OK" {
 		t.Logf("编译结果: Status=%s, Stderr=%s, Error=%v", compileResult.Status, compileResult.Stderr, err)
@@ -150,7 +151,7 @@ int main() {
     return 0;
 }
 `
-	compiler = &Compiler{codeType: CppType, code: cppSuccessCode}
+	compiler = &compile.Compiler{CodeType: compile.CppType, Code: cppSuccessCode}
 	compileResult, err = compiler.Compile(context.Background(), path)
 	if err != nil || compileResult.Status != "OK" {
 		t.Logf("编译结果: Status=%s, Stderr=%s, Error=%v", compileResult.Status, compileResult.Stderr, err)
@@ -179,7 +180,7 @@ int main() {
     return 0;
 }
 `
-	compiler = &Compiler{codeType: CppType, code: cppSegfaultCode}
+	compiler = &compile.Compiler{CodeType: compile.CppType, Code: cppSegfaultCode}
 	compileResult, err = compiler.Compile(context.Background(), path)
 	if err != nil || compileResult.Status != "OK" {
 		t.Logf("编译结果: Status=%s, Stderr=%s, Error=%v", compileResult.Status, compileResult.Stderr, err)
@@ -209,7 +210,7 @@ int main() {
     return 0;
 }
 `
-	compiler = &Compiler{codeType: CppType, code: cppSyntaxErrorCode}
+	compiler = &compile.Compiler{CodeType: compile.CppType, Code: cppSyntaxErrorCode}
 	compileResult, err = compiler.Compile(context.Background(), path)
 	if err != nil || compileResult.Status != "OK" {
 		t.Logf("编译结果: Status=%s, Stderr=%s", compileResult.Status, compileResult.Stderr)
@@ -234,7 +235,7 @@ int main() {
     return 0;
 }
 `
-	compiler = &Compiler{codeType: CppType, code: cppMemoryLimitCode}
+	compiler = &compile.Compiler{CodeType: compile.CppType, Code: cppMemoryLimitCode}
 	compileResult, err = compiler.Compile(context.Background(), path)
 	if err != nil || compileResult.Status != "OK" {
 		t.Logf("编译结果: Status=%s, Stderr=%s, Error=%v", compileResult.Status, compileResult.Stderr, err)
@@ -261,7 +262,7 @@ func main() {
     }
 }
 `
-	compiler = &Compiler{codeType: GoType, code: goOutputLimitCode}
+	compiler = &compile.Compiler{CodeType: compile.GoType, Code: goOutputLimitCode}
 	compileResult, err = compiler.Compile(context.Background(), path)
 	if err != nil || compileResult.Status != "OK" {
 		t.Logf("编译结果: Status=%s, Stderr=%s, Error=%v", compileResult.Status, compileResult.Stderr, err)
@@ -283,11 +284,11 @@ func main() {
 	t.Log("\n========== 测试10: C++ 程序 - 正常退出并返回自定义退出码 ==========")
 	cppExitCodeCode := `#include <iostream>
 int main() {
-    std::cout << "Exiting with code 42" << std::endl;
+    std::cout << "Exiting with Code 42" << std::endl;
     return 42;
 }
 `
-	compiler = &Compiler{codeType: CppType, code: cppExitCodeCode}
+	compiler = &compile.Compiler{CodeType: compile.CppType, Code: cppExitCodeCode}
 	compileResult, err = compiler.Compile(context.Background(), path)
 	if err != nil || compileResult.Status != "OK" {
 		t.Logf("编译结果: Status=%s, Stderr=%s, Error=%v", compileResult.Status, compileResult.Stderr, err)
@@ -316,17 +317,17 @@ func BenchmarkMain(b *testing.B) {
 		CpuLimit:     2 * time.Second,
 		MemoKiBLimit: 64 * 1024,
 	}
-
+	path := "../temp"
 	// ==========================
 	// Go 语言三种规模代码
 	// ==========================
 
 	// 1. Go 短代码（极简）
 	b.Run("Go_Short", func(b *testing.B) {
-		code := `package main;import "fmt";func main(){fmt.Print(1)}`
+		Code := `package main;import "fmt";func main(){fmt.Print(1)}`
 		b.ResetTimer()
 		for b.Loop() {
-			compiler := &Compiler{codeType: GoType, code: code}
+			compiler := &compile.Compiler{CodeType: compile.GoType, Code: Code}
 			res, _ := compiler.Compile(context.Background(), path)
 			runner.Bin = res.BinPath
 			_, _ = runner.runSandboxed(context.Background())
@@ -335,7 +336,7 @@ func BenchmarkMain(b *testing.B) {
 
 	// 2. Go 中等代码（正常业务）
 	b.Run("Go_Medium", func(b *testing.B) {
-		code := `package main
+		Code := `package main
 	import "fmt"
 	func test(a,b int)int{return a+b}
 	func main(){
@@ -345,7 +346,7 @@ func BenchmarkMain(b *testing.B) {
 	}`
 		b.ResetTimer()
 		for b.Loop() {
-			compiler := &Compiler{codeType: GoType, code: code}
+			compiler := &compile.Compiler{CodeType: compile.GoType, Code: Code}
 			res, _ := compiler.Compile(context.Background(), path)
 			runner.Bin = res.BinPath
 			_, _ = runner.runSandboxed(context.Background())
@@ -354,7 +355,7 @@ func BenchmarkMain(b *testing.B) {
 
 	// 3. Go 长代码（复杂逻辑）
 	b.Run("Go_Long", func(b *testing.B) {
-		code := `package main
+		Code := `package main
 	import "fmt"
 	type Data struct{ID int;Value string}
 	func NewData(id int,v string)*Data{return &Data{id,v}}
@@ -374,7 +375,7 @@ func BenchmarkMain(b *testing.B) {
 	}`
 		b.ResetTimer()
 		for b.Loop() {
-			compiler := &Compiler{codeType: GoType, code: code}
+			compiler := &compile.Compiler{CodeType: compile.GoType, Code: Code}
 			res, _ := compiler.Compile(context.Background(), path)
 			runner.Bin = res.BinPath
 			_, _ = runner.runSandboxed(context.Background())
@@ -387,7 +388,7 @@ func BenchmarkMain(b *testing.B) {
 
 	// 1. C++ 短代码
 	b.Run("Cpp_Short", func(b *testing.B) {
-		code := `#include<iostream>
+		Code := `#include<iostream>
 using namespace std;
 int main() {
 	cout<<1;
@@ -395,7 +396,7 @@ int main() {
 }`
 		b.ResetTimer()
 		for b.Loop() {
-			compiler := &Compiler{codeType: CppType, code: code}
+			compiler := &compile.Compiler{CodeType: compile.CppType, Code: Code}
 			res, _ := compiler.Compile(context.Background(), path)
 			runner.Bin = res.BinPath
 			_, _ = runner.runSandboxed(context.Background())
@@ -404,7 +405,7 @@ int main() {
 
 	// 2. C++ 中等代码
 	b.Run("Cpp_Medium", func(b *testing.B) {
-		code := `#include <iostream>
+		Code := `#include <iostream>
 using namespace std;
 int add(int a,int b){return a+b;}
 int main(){
@@ -415,7 +416,7 @@ int main(){
 }`
 		b.ResetTimer()
 		for b.Loop() {
-			compiler := &Compiler{codeType: CppType, code: code}
+			compiler := &compile.Compiler{CodeType: compile.CppType, Code: Code}
 			res, _ := compiler.Compile(context.Background(), path)
 			runner.Bin = res.BinPath
 			_, _ = runner.runSandboxed(context.Background())
@@ -424,7 +425,7 @@ int main(){
 
 	// 3. C++ 长代码
 	b.Run("Cpp_Long", func(b *testing.B) {
-		code := `#include <iostream>
+		Code := `#include <iostream>
 #include <vector>
 #include <string>
 using namespace std;
@@ -441,7 +442,7 @@ int main(){
 }`
 		b.ResetTimer()
 		for b.Loop() {
-			compiler := &Compiler{codeType: CppType, code: code}
+			compiler := &compile.Compiler{CodeType: compile.CppType, Code: Code}
 			res, _ := compiler.Compile(context.Background(), path)
 			runner.Bin = res.BinPath
 			_, _ = runner.runSandboxed(context.Background())
