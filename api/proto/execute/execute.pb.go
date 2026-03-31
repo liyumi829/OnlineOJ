@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.11
 // 	protoc        v3.12.4
-// source: execute/execute.proto
+// source: execute.proto
 
 package execute
 
@@ -23,16 +23,17 @@ const (
 
 type ExecuteRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Code          string                 `protobuf:"bytes,1,opt,name=code,proto3" json:"code,omitempty"`            // 用户代码
-	CpuLimit      int64                  `protobuf:"varint,2,opt,name=cpuLimit,proto3" json:"cpuLimit,omitempty"`   // CPU限制
-	MemoLimit     int64                  `protobuf:"varint,3,opt,name=memoLimit,proto3" json:"memoLimit,omitempty"` // 内存限制
+	CodeType      int32                  `protobuf:"varint,1,opt,name=codeType,proto3" json:"codeType,omitempty"`   // 用户代码类型
+	Code          string                 `protobuf:"bytes,2,opt,name=code,proto3" json:"code,omitempty"`            // 用户代码
+	CpuLimit      int64                  `protobuf:"varint,3,opt,name=cpuLimit,proto3" json:"cpuLimit,omitempty"`   // CPU限制
+	MemoLimit     int64                  `protobuf:"varint,4,opt,name=memoLimit,proto3" json:"memoLimit,omitempty"` // 内存限制
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ExecuteRequest) Reset() {
 	*x = ExecuteRequest{}
-	mi := &file_execute_execute_proto_msgTypes[0]
+	mi := &file_execute_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -44,7 +45,7 @@ func (x *ExecuteRequest) String() string {
 func (*ExecuteRequest) ProtoMessage() {}
 
 func (x *ExecuteRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_execute_execute_proto_msgTypes[0]
+	mi := &file_execute_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -57,7 +58,14 @@ func (x *ExecuteRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExecuteRequest.ProtoReflect.Descriptor instead.
 func (*ExecuteRequest) Descriptor() ([]byte, []int) {
-	return file_execute_execute_proto_rawDescGZIP(), []int{0}
+	return file_execute_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *ExecuteRequest) GetCodeType() int32 {
+	if x != nil {
+		return x.CodeType
+	}
+	return 0
 }
 
 func (x *ExecuteRequest) GetCode() string {
@@ -92,7 +100,7 @@ type ExecuteResponse struct {
 
 func (x *ExecuteResponse) Reset() {
 	*x = ExecuteResponse{}
-	mi := &file_execute_execute_proto_msgTypes[1]
+	mi := &file_execute_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -104,7 +112,7 @@ func (x *ExecuteResponse) String() string {
 func (*ExecuteResponse) ProtoMessage() {}
 
 func (x *ExecuteResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_execute_execute_proto_msgTypes[1]
+	mi := &file_execute_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -117,7 +125,7 @@ func (x *ExecuteResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExecuteResponse.ProtoReflect.Descriptor instead.
 func (*ExecuteResponse) Descriptor() ([]byte, []int) {
-	return file_execute_execute_proto_rawDescGZIP(), []int{1}
+	return file_execute_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *ExecuteResponse) GetStatus() string {
@@ -141,40 +149,41 @@ func (x *ExecuteResponse) GetStderr() string {
 	return ""
 }
 
-var File_execute_execute_proto protoreflect.FileDescriptor
+var File_execute_proto protoreflect.FileDescriptor
 
-const file_execute_execute_proto_rawDesc = "" +
+const file_execute_proto_rawDesc = "" +
 	"\n" +
-	"\x15execute/execute.proto\x12\rcompileandrun\"^\n" +
-	"\x0eExecuteRequest\x12\x12\n" +
-	"\x04code\x18\x01 \x01(\tR\x04code\x12\x1a\n" +
-	"\bcpuLimit\x18\x02 \x01(\x03R\bcpuLimit\x12\x1c\n" +
-	"\tmemoLimit\x18\x03 \x01(\x03R\tmemoLimit\"Y\n" +
+	"\rexecute.proto\x12\rcompileandrun\"z\n" +
+	"\x0eExecuteRequest\x12\x1a\n" +
+	"\bcodeType\x18\x01 \x01(\x05R\bcodeType\x12\x12\n" +
+	"\x04code\x18\x02 \x01(\tR\x04code\x12\x1a\n" +
+	"\bcpuLimit\x18\x03 \x01(\x03R\bcpuLimit\x12\x1c\n" +
+	"\tmemoLimit\x18\x04 \x01(\x03R\tmemoLimit\"Y\n" +
 	"\x0fExecuteResponse\x12\x16\n" +
 	"\x06status\x18\x01 \x01(\tR\x06status\x12\x16\n" +
 	"\x06stdout\x18\x02 \x01(\tR\x06stdout\x12\x16\n" +
 	"\x06stderr\x18\x03 \x01(\tR\x06stderr2_\n" +
 	"\rCompileAndRun\x12N\n" +
-	"\vExecuteCode\x12\x1d.compileandrun.ExecuteRequest\x1a\x1e.compileandrun.ExecuteResponse\"\x00B\x13Z\x11./execute;executeb\x06proto3"
+	"\vExecuteCode\x12\x1d.compileandrun.ExecuteRequest\x1a\x1e.compileandrun.ExecuteResponse\"\x00B\vZ\t.;executeb\x06proto3"
 
 var (
-	file_execute_execute_proto_rawDescOnce sync.Once
-	file_execute_execute_proto_rawDescData []byte
+	file_execute_proto_rawDescOnce sync.Once
+	file_execute_proto_rawDescData []byte
 )
 
-func file_execute_execute_proto_rawDescGZIP() []byte {
-	file_execute_execute_proto_rawDescOnce.Do(func() {
-		file_execute_execute_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_execute_execute_proto_rawDesc), len(file_execute_execute_proto_rawDesc)))
+func file_execute_proto_rawDescGZIP() []byte {
+	file_execute_proto_rawDescOnce.Do(func() {
+		file_execute_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_execute_proto_rawDesc), len(file_execute_proto_rawDesc)))
 	})
-	return file_execute_execute_proto_rawDescData
+	return file_execute_proto_rawDescData
 }
 
-var file_execute_execute_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
-var file_execute_execute_proto_goTypes = []any{
+var file_execute_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_execute_proto_goTypes = []any{
 	(*ExecuteRequest)(nil),  // 0: compileandrun.ExecuteRequest
 	(*ExecuteResponse)(nil), // 1: compileandrun.ExecuteResponse
 }
-var file_execute_execute_proto_depIdxs = []int32{
+var file_execute_proto_depIdxs = []int32{
 	0, // 0: compileandrun.CompileAndRun.ExecuteCode:input_type -> compileandrun.ExecuteRequest
 	1, // 1: compileandrun.CompileAndRun.ExecuteCode:output_type -> compileandrun.ExecuteResponse
 	1, // [1:2] is the sub-list for method output_type
@@ -184,26 +193,26 @@ var file_execute_execute_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for field type_name
 }
 
-func init() { file_execute_execute_proto_init() }
-func file_execute_execute_proto_init() {
-	if File_execute_execute_proto != nil {
+func init() { file_execute_proto_init() }
+func file_execute_proto_init() {
+	if File_execute_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_execute_execute_proto_rawDesc), len(file_execute_execute_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_execute_proto_rawDesc), len(file_execute_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   2,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_execute_execute_proto_goTypes,
-		DependencyIndexes: file_execute_execute_proto_depIdxs,
-		MessageInfos:      file_execute_execute_proto_msgTypes,
+		GoTypes:           file_execute_proto_goTypes,
+		DependencyIndexes: file_execute_proto_depIdxs,
+		MessageInfos:      file_execute_proto_msgTypes,
 	}.Build()
-	File_execute_execute_proto = out.File
-	file_execute_execute_proto_goTypes = nil
-	file_execute_execute_proto_depIdxs = nil
+	File_execute_proto = out.File
+	file_execute_proto_goTypes = nil
+	file_execute_proto_depIdxs = nil
 }
