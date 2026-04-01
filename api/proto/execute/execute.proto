@@ -18,6 +18,8 @@ message ExecuteResponse {
   string status = 1; // 状态
   string stdout = 2; // 标准输出
   string stderr = 3; // 标准错误
+  int64 time = 4; // 实际运行时间
+  int64 memory = 5; // 实际使用内存
 }
 
 //protoc --go_out=. --go_opt=paths=source_relative \

@@ -91,9 +91,11 @@ func (x *ExecuteRequest) GetMemoLimit() int64 {
 
 type ExecuteResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Status        string                 `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"` // 状态
-	Stdout        string                 `protobuf:"bytes,2,opt,name=stdout,proto3" json:"stdout,omitempty"` // 标准输出
-	Stderr        string                 `protobuf:"bytes,3,opt,name=stderr,proto3" json:"stderr,omitempty"` // 标准错误
+	Status        string                 `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`  // 状态
+	Stdout        string                 `protobuf:"bytes,2,opt,name=stdout,proto3" json:"stdout,omitempty"`  // 标准输出
+	Stderr        string                 `protobuf:"bytes,3,opt,name=stderr,proto3" json:"stderr,omitempty"`  // 标准错误
+	Time          int64                  `protobuf:"varint,4,opt,name=time,proto3" json:"time,omitempty"`     // 实际运行时间
+	Memory        int64                  `protobuf:"varint,5,opt,name=memory,proto3" json:"memory,omitempty"` // 实际使用内存
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -149,6 +151,20 @@ func (x *ExecuteResponse) GetStderr() string {
 	return ""
 }
 
+func (x *ExecuteResponse) GetTime() int64 {
+	if x != nil {
+		return x.Time
+	}
+	return 0
+}
+
+func (x *ExecuteResponse) GetMemory() int64 {
+	if x != nil {
+		return x.Memory
+	}
+	return 0
+}
+
 var File_execute_proto protoreflect.FileDescriptor
 
 const file_execute_proto_rawDesc = "" +
@@ -158,11 +174,13 @@ const file_execute_proto_rawDesc = "" +
 	"\bcodeType\x18\x01 \x01(\x05R\bcodeType\x12\x12\n" +
 	"\x04code\x18\x02 \x01(\tR\x04code\x12\x1a\n" +
 	"\bcpuLimit\x18\x03 \x01(\x03R\bcpuLimit\x12\x1c\n" +
-	"\tmemoLimit\x18\x04 \x01(\x03R\tmemoLimit\"Y\n" +
+	"\tmemoLimit\x18\x04 \x01(\x03R\tmemoLimit\"\x85\x01\n" +
 	"\x0fExecuteResponse\x12\x16\n" +
 	"\x06status\x18\x01 \x01(\tR\x06status\x12\x16\n" +
 	"\x06stdout\x18\x02 \x01(\tR\x06stdout\x12\x16\n" +
-	"\x06stderr\x18\x03 \x01(\tR\x06stderr2_\n" +
+	"\x06stderr\x18\x03 \x01(\tR\x06stderr\x12\x12\n" +
+	"\x04time\x18\x04 \x01(\x03R\x04time\x12\x16\n" +
+	"\x06memory\x18\x05 \x01(\x03R\x06memory2_\n" +
 	"\rCompileAndRun\x12N\n" +
 	"\vExecuteCode\x12\x1d.compileandrun.ExecuteRequest\x1a\x1e.compileandrun.ExecuteResponse\"\x00B\vZ\t.;executeb\x06proto3"
 
