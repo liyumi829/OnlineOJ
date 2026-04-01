@@ -11,14 +11,14 @@ func init() {
 	config := pkg.Config{
 		Id:           1,
 		InstanceName: "gRpcServer",
-		Mode:         "prod",
+		Mode:         "debug",
 		StoragePath:  "../../../logs",
 	}
 	pkg.InitLogger(config)
 }
 
 func main() {
-	err := execute.StartGRPCServer("127.0.0.1:8080", "./temp")
+	err := execute.StartGRPCServer("127.0.0.1:8080", "../../../temp")
 	if err != nil {
 		zap.L().Fatal("Server failed to start.", zap.String("error", err.Error()))
 	}

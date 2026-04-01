@@ -3,10 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
-	"online-oj/api/proto/execute"
-	pkg "online-oj/pkg/logger"
+	"online-oj/api/proto/judge"
 	"testing"
-	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -14,26 +12,19 @@ import (
 
 // ===================== 配置 =====================
 const (
-	serverAddr  = "127.0.0.1:8080" // 你的服务端地址
-	rpcTimeout  = 10 * time.Second // RPC调用超时（足够大）
-	cpuLimit    = 3000_000_000     // 代码执行3秒
-	memLimitMLE = 64 * 1024        // 64MB（超限测试）
+	serverAddr     = "127.0.0.1:8080"
+	codeTypeGo     = 1
+	codeTypeCpp    = 2
+	cpuLimitNormal = 3 * 1000_000_000 // 3s → ns
+	cpuLimitShort  = 500_000_000      // 0.5s → ns（超时测试用）
+	memLimitNormal = 64 * 1024        // 64MB → KB
+	memLimitLow    = 10 * 1024        // 10MB → KB（内存超限用）
 )
 
 // 全局客户端
-var client execute.CompileAndRunClient
+var client judge.JudgeServiceClient
 
 func init() {
-	// 初始化日志
-	config := pkg.Config{
-		Id:           1,
-		InstanceName: "gRpcClient",
-		Mode:         "prod",
-		StoragePath:  "../../../logs",
-	}
-	pkg.InitLogger(config)
-
-	// 连接服务端
 	conn, err := grpc.NewClient(
 		serverAddr,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
@@ -41,225 +32,399 @@ func init() {
 	if err != nil {
 		panic("connect server fail: " + err.Error())
 	}
-	client = execute.NewCompileAndRunClient(conn)
+	client = judge.NewJudgeServiceClient(conn)
 }
 
-// ===================== 工具函数 =====================
-func ctx() context.Context {
-	ctx, _ := context.WithTimeout(context.Background(), rpcTimeout)
-	return ctx
-}
-
-// 分隔线
+// ====================== 工具 ======================
+// 分隔符
 func sep() {
-	fmt.Println("\n" + "==================================================================================")
+	fmt.Println("\n==================================================")
 }
 
-// 打印结果
-func printResult(name string, start time.Time, resp *execute.ExecuteResponse, err error) {
-	cost := time.Since(start)
-	fmt.Printf("🧪 测试用例：%s\n", name)
-	fmt.Printf("⏱  RPC总耗时：%v\n", cost)
+// 永不超时 Context（你确认过的）
+func ctx() context.Context {
+	return context.Background()
+}
+
+// 打印完整结果（完整版：输出所有 CaseResult）
+func printResp(resp *judge.JudgeResponse, err error) {
 	if err != nil {
-		fmt.Println("❌ 错误：", err)
+		fmt.Println("❌ RPC调用错误:", err)
 		return
 	}
-	fmt.Printf("✅ 状态：%s\n", resp.Status)
-	fmt.Printf("📤 标准输出：%s\n", resp.Stdout)
-	fmt.Printf("📥 标准错误：%s\n", resp.Stderr)
-	fmt.Printf("⏱  代码耗时：%.2f ms\n", float64(resp.Time)/1_000_000.0)
-	fmt.Printf("📊 代码内存：%d KB\n", resp.Memory)
+
+	sep()
+	fmt.Printf("✅ 总状态: %s\n", resp.Status)
+	fmt.Printf("📤 总标准输出: %s\n", resp.Stdout)
+	fmt.Printf("📥 总标准错误: %s\n", resp.Stderr)
+	fmt.Printf("⏱ Max耗时: %.3f ms\n", float64(resp.Time)/1_000_000.0)
+	fmt.Printf("📊 Max内存: %d KB\n", resp.Memory)
+	sep()
+
+	// ========== 这里是关键：完整输出所有测试用例结果 ==========
+	fmt.Println("========== 测试用例详细结果 ==========")
+	if len(resp.Results) == 0 {
+		fmt.Println("⚠️  无测试用例结果 (可能编译失败/超时/内存溢出)")
+	}
+
+	for i, r := range resp.Results {
+		fmt.Printf("🔹 用例 #%d\n", i+1)
+		fmt.Printf("   ✅ 是否通过: %t\n", r.Passed)
+		fmt.Printf("   📤 实际输出: %s\n", r.Output)
+		fmt.Printf("   ⏱  用例耗时: %.3f ms\n", float64(r.Time)/1_000_000.0)
+		fmt.Printf("   📊 用例内存: %d KB\n", r.Memory)
+		fmt.Println("------------------------------------")
+	}
+	fmt.Println("====================================")
+	fmt.Println()
 }
 
-// ===================== 测试开始 =====================
-
-// 1. 极短代码
-func TestRPC_ShortCode(t *testing.T) {
+// ====================== 1. 两数之和 - Go ======================
+func Test_Judge_TwoSum_Go(t *testing.T) {
 	sep()
 	defer sep()
-	start := time.Now()
-	code := `package main;func main(){println("short")}`
-	req := &execute.ExecuteRequest{CodeType: 1, Code: code, CpuLimit: cpuLimit, MemoLimit: memLimitMLE}
-	resp, err := client.ExecuteCode(ctx(), req)
-	printResult("短代码", start, resp, err)
+	t.Log("🧪 测试：两数之和 - Go")
 
-	// 结果校验
-	if err != nil {
-		t.Fatal(err)
-	}
-	if resp.Status != "OK" {
-		t.Error("status != OK")
-	}
-	if resp.Stdout != "" {
-		t.Error("stdout not empty")
-	}
-	if resp.Stderr == "" {
-		t.Error("stderr empty")
-	}
-}
-
-// 2. 中等代码
-func TestRPC_MidCode(t *testing.T) {
-	sep()
-	defer sep()
-	start := time.Now()
 	code := `
 package main
 import "fmt"
-func main(){
-	s:=0
-	for i:=0;i<1000;i++{s+=i}
-	fmt.Println(s)
+func twoSum(nums []int, target int) []int {
+    m := make(map[int]int)
+    for i, num := range nums {
+        if j, ok := m[target-num]; ok {
+            return []int{j, i}
+        }
+        m[num] = i
+    }
+    return nil
+}
+func main() {
+    var n, target int
+    fmt.Scan(&n)
+    nums := make([]int, n)
+    for i := 0; i < n; i++ {
+        fmt.Scan(&nums[i])
+    }
+    fmt.Scan(&target)
+    res := twoSum(nums, target)
+    fmt.Println(res[0], res[1])
 }`
-	req := &execute.ExecuteRequest{CodeType: 1, Code: code, CpuLimit: cpuLimit, MemoLimit: memLimitMLE}
-	resp, err := client.ExecuteCode(ctx(), req)
-	printResult("中等代码", start, resp, err)
 
-	if err != nil {
-		t.Fatal(err)
+	req := &judge.JudgeRequest{
+		Code:      code,
+		CodeType:  codeTypeGo,
+		CpuLimit:  cpuLimitNormal,
+		MemoLimit: memLimitNormal,
+		TestCases: []*judge.TestCase{
+			{Input: "4\n2 7 11 15\n9", Output: "0 1"},
+			{Input: "3\n3 2 4\n6", Output: "1 2"},
+		},
 	}
-	if resp.Status != "OK" {
-		t.Error("status fail")
-	}
+
+	resp, err := client.Judge(ctx(), req)
+	printResp(resp, err)
 }
 
-// 3. 长代码
-func TestRPC_LongCode(t *testing.T) {
+// ====================== 2. 两数之和 - C++ ======================
+func Test_Judge_TwoSum_Cpp(t *testing.T) {
 	sep()
 	defer sep()
-	start := time.Now()
-	code := `
-package main
-import "fmt"
-func f1()int{return 1}
-func f2()int{return f1()+2}
-func f3()int{return f2()+3}
-func f4()int{return f3()+4}
-func f5()int{return f4()+5}
-func main(){fmt.Println(f5())}
-`
-	req := &execute.ExecuteRequest{CodeType: 1, Code: code, CpuLimit: cpuLimit, MemoLimit: memLimitMLE}
-	resp, err := client.ExecuteCode(ctx(), req)
-	printResult("长代码", start, resp, err)
+	t.Log("🧪 测试：两数之和 - C++")
 
-	if err != nil {
-		t.Fatal(err)
-	}
-	if resp.Status != "OK" {
-		t.Error("status fail")
-	}
-}
-
-// 4. 递归代码
-func TestRPC_RecurseCode(t *testing.T) {
-	sep()
-	defer sep()
-	start := time.Now()
-	code := `
-package main
-import "fmt"
-func fib(n int)int{
-	if n<=2{return 1}
-	return fib(n-1)+fib(n-2)
-}
-func main(){fmt.Println(fib(20))}
-`
-	req := &execute.ExecuteRequest{CodeType: 1, Code: code, CpuLimit: cpuLimit, MemoLimit: memLimitMLE}
-	resp, err := client.ExecuteCode(ctx(), req)
-	printResult("递归代码", start, resp, err)
-
-	if err != nil {
-		t.Fatal(err)
-	}
-	if resp.Status != "OK" {
-		t.Error("status fail")
-	}
-}
-
-// 5. 计算密集
-func TestRPC_CPUHeavyCode(t *testing.T) {
-	sep()
-	defer sep()
-	start := time.Now()
-	code := `
-package main
-func main(){
-	s:=0
-	for i:=0;i<1000000;i++{s+=i}
-}`
-	req := &execute.ExecuteRequest{CodeType: 1, Code: code, CpuLimit: cpuLimit, MemoLimit: memLimitMLE}
-	resp, err := client.ExecuteCode(ctx(), req)
-	printResult("计算密集代码", start, resp, err)
-
-	if err != nil {
-		t.Fatal(err)
-	}
-	if resp.Status != "OK" {
-		t.Error("status fail")
-	}
-}
-
-// 6. 编译错误
-func TestRPC_CompileError(t *testing.T) {
-	sep()
-	defer sep()
-	start := time.Now()
-	code := `package main;func main(){syntax error}`
-	req := &execute.ExecuteRequest{CodeType: 1, Code: code, CpuLimit: cpuLimit, MemoLimit: memLimitMLE}
-	resp, err := client.ExecuteCode(ctx(), req)
-	printResult("编译错误代码", start, resp, err)
-
-	if err != nil {
-		t.Fatal(err)
-	}
-	if resp.Status != "CE" {
-		t.Error("should be CE")
-	}
-}
-
-// 7. 超时代码 TLE
-func TestRPC_Timeout(t *testing.T) {
-	sep()
-	defer sep()
-	start := time.Now()
 	code := `
 #include <iostream>
+#include <vector>
+#include <unordered_map>
+using namespace std;
+vector<int> twoSum(vector<int>& nums, int target) {
+    unordered_map<int, int> m;
+    for (int i=0; i<nums.size(); i++) {
+        if (m.count(target-nums[i])) {
+            return {m[target-nums[i]], i};
+        }
+        m[nums[i]] = i;
+    }
+    return {};
+}
 int main() {
-	while(true){};
-}
-`
-	req := &execute.ExecuteRequest{CodeType: 2, Code: code, CpuLimit: 1000_000_000, MemoLimit: memLimitMLE}
-	resp, err := client.ExecuteCode(ctx(), req)
-	printResult("超时代码(TLE)", start, resp, err)
+    int n, target;
+    cin >> n;
+    vector<int> nums(n);
+    for (int i=0; i<n; i++) cin >> nums[i];
+    cin >> target;
+    auto res = twoSum(nums, target);
+    cout << res[0] << " " << res[1] << endl;
+    return 0;
+}`
 
-	if err != nil {
-		t.Fatal(err)
+	req := &judge.JudgeRequest{
+		Code:      code,
+		CodeType:  codeTypeCpp,
+		CpuLimit:  cpuLimitNormal,
+		MemoLimit: memLimitNormal,
+		TestCases: []*judge.TestCase{
+			{Input: "4\n2 7 11 15\n9", Output: "0 1"},
+			{Input: "3\n3 2 4\n6", Output: "1 2"},
+		},
 	}
-	if resp.Status != "TLE" {
-		t.Error("should be TLE")
-	}
+
+	resp, err := client.Judge(ctx(), req)
+	printResp(resp, err)
 }
 
-// 8. 内存超限 MLE
-func TestRPC_MemoryExceeded(t *testing.T) {
+// ====================== 3. 回文数 - Go ======================
+func Test_Judge_Palindrome_Go(t *testing.T) {
 	sep()
 	defer sep()
-	start := time.Now()
-	code := `package main
+	t.Log("🧪 测试：回文数 - Go")
+
+	code := `
+package main
+import "fmt"
+func isPalindrome(x int) bool {
+    if x < 0 || (x%10 == 0 && x != 0) {
+        return false
+    }
+    rev := 0
+    org := x
+    for x > 0 {
+        rev = rev*10 + x%10
+        x /= 10
+    }
+    return org == rev
+}
 func main() {
-	a := make([]int,1024*1024*80)
-	for i := range a {
-    	a[i] = 1 // 必须赋值！
+    var x int
+    fmt.Scan(&x)
+    fmt.Println(isPalindrome(x))
+}`
+
+	req := &judge.JudgeRequest{
+		Code:      code,
+		CodeType:  codeTypeGo,
+		CpuLimit:  cpuLimitNormal,
+		MemoLimit: memLimitNormal,
+		TestCases: []*judge.TestCase{
+			{Input: "121", Output: "true"},
+			{Input: "-121", Output: "false"},
+			{Input: "10", Output: "false"},
+		},
+	}
+
+	resp, err := client.Judge(ctx(), req)
+	printResp(resp, err)
+}
+
+// ====================== 4. 回文数 - C++ ======================
+func Test_Judge_Palindrome_Cpp(t *testing.T) {
+	sep()
+	defer sep()
+	t.Log("🧪 测试：回文数 - C++")
+
+	code := `
+#include <iostream>
+using namespace std;
+bool isPalindrome(int x) {
+    if (x < 0 || (x % 10 == 0 && x != 0)) return false;
+    int rev = 0, org = x;
+    while (x > 0) {
+        rev = rev*10 + x%10;
+        x /= 10;
+    }
+    return org == rev;
+}
+int main() {
+    int x;
+    cin >> x;
+    cout << boolalpha << isPalindrome(x) << endl;
+    return 0;
+}`
+
+	req := &judge.JudgeRequest{
+		Code:      code,
+		CodeType:  codeTypeCpp,
+		CpuLimit:  cpuLimitNormal,
+		MemoLimit: memLimitNormal,
+		TestCases: []*judge.TestCase{
+			{Input: "121", Output: "true"},
+			{Input: "-121", Output: "false"},
+		},
+	}
+
+	resp, err := client.Judge(ctx(), req)
+	printResp(resp, err)
+}
+
+// ====================== 5. 编译错误 - Go ======================
+func Test_Judge_Compile_Error(t *testing.T) {
+	sep()
+	defer sep()
+	t.Log("🧪 测试：编译错误 - Go")
+
+	// 语法错误代码
+	code := `
+package main
+import "fmt"
+func main() {
+    fmt.Println(123  // 少括号
+}`
+
+	req := &judge.JudgeRequest{
+		Code:      code,
+		CodeType:  codeTypeGo,
+		CpuLimit:  cpuLimitNormal,
+		MemoLimit: memLimitNormal,
+		TestCases: []*judge.TestCase{{Input: "1", Output: "1"}},
+	}
+
+	resp, err := client.Judge(ctx(), req)
+	printResp(resp, err)
+}
+
+// ====================== 6. 单个测试用例答案错误 ======================
+func Test_Judge_Single_Case_Wrong(t *testing.T) {
+	sep()
+	defer sep()
+	t.Log("🧪 测试：单个用例答案错误 - Go")
+
+	code := `
+package main
+import "fmt"
+func main() {
+    var a int
+    fmt.Scan(&a)
+    fmt.Println(100) // 故意输出错误答案
+}`
+
+	req := &judge.JudgeRequest{
+		Code:      code,
+		CodeType:  codeTypeGo,
+		CpuLimit:  cpuLimitNormal,
+		MemoLimit: memLimitNormal,
+		TestCases: []*judge.TestCase{
+			{Input: "5", Output: "5"}, // 预期 5，实际输出 100
+		},
+	}
+
+	resp, err := client.Judge(ctx(), req)
+	printResp(resp, err)
+}
+
+// ====================== 7. 3个用例 2个错误（部分错误） ======================
+func Test_Judge_Multi_Case_Partial_Wrong(t *testing.T) {
+	sep()
+	defer sep()
+	t.Log("🧪 测试：3用例 2个错误 - Go")
+
+	code := `
+package main
+import "fmt"
+func main() {
+    var a int
+    fmt.Scan(&a)
+    if a == 1 {
+        fmt.Println(1)
+    } else {
+        fmt.Println(999)
+    }
+}`
+
+	req := &judge.JudgeRequest{
+		Code:      code,
+		CodeType:  codeTypeGo,
+		CpuLimit:  cpuLimitNormal,
+		MemoLimit: memLimitNormal,
+		TestCases: []*judge.TestCase{
+			{Input: "1", Output: "1"}, // 正确
+			{Input: "2", Output: "2"}, // 错误
+			{Input: "3", Output: "3"}, // 错误
+		},
+	}
+
+	resp, err := client.Judge(ctx(), req)
+	printResp(resp, err)
+}
+
+// ====================== 8. 代码超时（死循环） ======================
+func Test_Judge_Timeout_TLE(t *testing.T) {
+	sep()
+	defer sep()
+	t.Log("🧪 测试：代码超时 TLE - Go")
+
+	code := `
+package main
+func main() {
+    for {} // 死循环
+}`
+
+	req := &judge.JudgeRequest{
+		Code:      code,
+		CodeType:  codeTypeGo,
+		CpuLimit:  cpuLimitShort, // 0.5s 必超时
+		MemoLimit: memLimitNormal,
+		TestCases: []*judge.TestCase{{Input: "1", Output: "1"}},
+	}
+
+	resp, err := client.Judge(ctx(), req)
+	printResp(resp, err)
+}
+
+// ====================== 9. 内存超限 MLE（Go 大切片分配） ======================
+func Test_Judge_Memory_Exceeded_MLE(t *testing.T) {
+	sep()
+	defer sep()
+	t.Log("🧪 测试：内存超限 MLE - Go（大切片分配）")
+
+	// 直接分配超大切片，必触发 10MB 限制
+	code := `
+package main
+func main() {
+    arr := make([]int, 1024*1024*20) // 约 160MB
+	for i := range arr {
+		arr[i] = 1
 	}
 }`
-	req := &execute.ExecuteRequest{CodeType: 1, Code: code, CpuLimit: cpuLimit, MemoLimit: memLimitMLE}
-	resp, err := client.ExecuteCode(ctx(), req)
-	printResult("内存超限(MLE)", start, resp, err)
 
-	if err != nil {
-		t.Fatal(err)
+	req := &judge.JudgeRequest{
+		Code:      code,
+		CodeType:  codeTypeGo,
+		CpuLimit:  cpuLimitNormal,
+		MemoLimit: memLimitLow, // 10MB 限制
+		TestCases: []*judge.TestCase{{Input: "1", Output: "1"}},
 	}
-	if resp.Status != "MLE" {
-		t.Error("should be MLE")
+
+	resp, err := client.Judge(ctx(), req)
+	printResp(resp, err)
+}
+
+// ====================== 段错误（空指针访问） ======================
+func Test_Judge_SegmentFault_CPP(t *testing.T) {
+	sep()
+	defer sep()
+	t.Log("🧪 测试：段错误 Segmentation Fault - C++")
+
+	// 直接访问空指针，必现段错误
+	code := `
+#include <iostream>
+using namespace std;
+int main() {
+	cerr << "segment fault occurred" << endl;
+    int *p = nullptr;
+    *p = 123;
+    cout << *p << endl;
+    return 0;
+}`
+
+	req := &judge.JudgeRequest{
+		Code:      code,
+		CodeType:  2,
+		CpuLimit:  cpuLimitNormal,
+		MemoLimit: memLimitNormal,
+		TestCases: []*judge.TestCase{
+			{Input: "1", Output: "1"},
+		},
 	}
+
+	resp, err := client.Judge(ctx(), req)
+	printResp(resp, err)
 }

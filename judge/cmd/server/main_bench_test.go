@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"online-oj/api/proto/execute"
+	"online-oj/api/proto/judge"
 	"testing"
 
 	"google.golang.org/grpc"
@@ -11,7 +11,7 @@ import (
 
 const benchServerAddr = "127.0.0.1:8080"
 
-var benchClient execute.CompileAndRunClient
+var benchClient judge.JudgeServiceClient
 
 // 测试前初始化客户端连接
 func init() {
@@ -22,7 +22,7 @@ func init() {
 	}
 
 	// 创建客户端
-	benchClient = execute.NewCompileAndRunClient(conn)
+	benchClient = judge.NewJudgeServiceClient(conn)
 }
 
 // ==============================================
@@ -34,7 +34,7 @@ import "fmt"
 func main() {
 	fmt.Print(1)
 }`
-	req := &execute.ExecuteRequest{
+	req := &judge.JudgeRequest{
 		CodeType:  1,
 		Code:      code,
 		CpuLimit:  3000_000_000, // 3s CPU限制
@@ -45,7 +45,7 @@ func main() {
 
 	// 压测循环
 	for b.Loop() {
-		_, err := benchClient.ExecuteCode(context.Background(), req)
+		_, err := benchClient.Judge(context.Background(), req)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -64,7 +64,7 @@ func main(){
 	for i:=0;i<100;i++{s+=test(i,i*2)}
 	fmt.Println("result:",s)
 }`
-	req := &execute.ExecuteRequest{
+	req := &judge.JudgeRequest{
 		CodeType:  1,
 		Code:      code,
 		CpuLimit:  3000_000_000,
@@ -73,7 +73,7 @@ func main(){
 
 	b.ResetTimer()
 	for b.Loop() {
-		_, err := benchClient.ExecuteCode(context.Background(), req)
+		_, err := benchClient.Judge(context.Background(), req)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -102,7 +102,7 @@ func BenchmarkExecute_LongCode_Go(b *testing.B) {
 		}
 		fmt.Println("sum:",sum,test1())
 	}`
-	req := &execute.ExecuteRequest{
+	req := &judge.JudgeRequest{
 		CodeType:  1,
 		Code:      code,
 		CpuLimit:  3000_000_000,
@@ -111,7 +111,7 @@ func BenchmarkExecute_LongCode_Go(b *testing.B) {
 
 	b.ResetTimer()
 	for b.Loop() {
-		_, err := benchClient.ExecuteCode(context.Background(), req)
+		_, err := benchClient.Judge(context.Background(), req)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -133,7 +133,7 @@ func main() {
 	fmt.Println(fib(20))
 }
 `
-	req := &execute.ExecuteRequest{
+	req := &judge.JudgeRequest{
 		CodeType:  1,
 		Code:      code,
 		CpuLimit:  3000_000_000,
@@ -142,7 +142,7 @@ func main() {
 
 	b.ResetTimer()
 	for b.Loop() {
-		_, err := benchClient.ExecuteCode(context.Background(), req)
+		_, err := benchClient.Judge(context.Background(), req)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -159,7 +159,7 @@ int main() {
 	cout<<1;
 	return 0;
 }`
-	req := &execute.ExecuteRequest{
+	req := &judge.JudgeRequest{
 		CodeType:  2,
 		Code:      code,
 		CpuLimit:  3000_000_000,
@@ -168,7 +168,7 @@ int main() {
 
 	b.ResetTimer()
 	for b.Loop() {
-		_, err := benchClient.ExecuteCode(context.Background(), req)
+		_, err := benchClient.Judge(context.Background(), req)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -185,7 +185,7 @@ int main(){
 	cout<<s<<endl;
 	return 0;
 }`
-	req := &execute.ExecuteRequest{
+	req := &judge.JudgeRequest{
 		CodeType:  2,
 		Code:      code,
 		CpuLimit:  3000_000_000,
@@ -194,7 +194,7 @@ int main(){
 
 	b.ResetTimer()
 	for b.Loop() {
-		_, err := benchClient.ExecuteCode(context.Background(), req)
+		_, err := benchClient.Judge(context.Background(), req)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -217,7 +217,7 @@ int main(){
 	cout<<"sum="<<sum<<endl;
 	return 0;
 }`
-	req := &execute.ExecuteRequest{
+	req := &judge.JudgeRequest{
 		CodeType:  2,
 		Code:      code,
 		CpuLimit:  3000_000_000,
@@ -226,7 +226,7 @@ int main(){
 
 	b.ResetTimer()
 	for b.Loop() {
-		_, err := benchClient.ExecuteCode(context.Background(), req)
+		_, err := benchClient.Judge(context.Background(), req)
 		if err != nil {
 			b.Fatal(err)
 		}
