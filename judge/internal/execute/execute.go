@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"online-oj/api/proto/execute"
+	"online-oj/api/proto/judge"
 	"online-oj/judge/internal/compile"
 	"online-oj/judge/internal/run"
 	"os"
@@ -17,7 +17,7 @@ import (
 )
 
 // NewServer 创建CompileAndRun服务实例
-func NewServer(storagePath string) (execute.CompileAndRunServer, error) {
+func NewServer(storagePath string) (judge.JudgeServiceServer, error) {
 	if _, err := os.Stat(storagePath); os.IsNotExist(err) {
 		if err := os.MkdirAll(storagePath, 0755); err != nil {
 			return nil, fmt.Errorf("create storage path failed: %w", err)
@@ -38,7 +38,7 @@ func StartGRPCServer(addr string, storagePath string) error {
 	if err != nil {
 		return err
 	}
-	execute.RegisterCompileAndRunServer(s, srv)
+	judge.RegisterJudgeServiceServer(s, srv)
 
 	// 优雅关闭（监听系统信号）
 	go func() {
@@ -56,13 +56,13 @@ func StartGRPCServer(addr string, storagePath string) error {
 
 // 实现grpc调用
 type server struct {
-	execute.UnimplementedCompileAndRunServer
+	judge.UnimplementedJudgeServiceServer
 	storagePath string // 存储路径
 }
 
 // ExecuteCode 执行用户代码
-func (s *server) ExecuteCode(ctx context.Context, req *execute.ExecuteRequest) (*execute.ExecuteResponse, error) {
-	zap.L().Debug("receive a execute code request...", zap.String("code", req.GetCode()))
+func (s *server) Judge(ctx context.Context, req *judge.JudgeRequest) (*judge.JudgeResponse, error) {
+	zap.L().Debug("receive a execute code request...", zap.Bool("code not empty", req.GetCode() != ""))
 
 	codeType := getCodeType(req.GetCodeType()) // 获取类型
 	if codeType == compile.UnKnownType {
@@ -80,7 +80,7 @@ func (s *server) ExecuteCode(ctx context.Context, req *execute.ExecuteRequest) (
 		zap.L().Error("A compilation error occurred", zap.String("error", err.Error()))
 		return nil, err
 	}
-	rsp := &execute.ExecuteResponse{}
+	rsp := &judge.JudgeResponse{}
 	// 正常读取
 	if cRes.Status == "CE" { // 发生编译错误
 		// 发生编译错误
@@ -94,6 +94,7 @@ func (s *server) ExecuteCode(ctx context.Context, req *execute.ExecuteRequest) (
 		Bin:          cRes.BinPath,
 		CpuLimit:     time.Duration(req.CpuLimit),
 		MemoKiBLimit: req.MemoLimit,
+		TestCases:    req.GetTestCases(),
 	}
 	rRes, err := runner.RunSandboxed(ctx)
 	if err != nil {
@@ -104,8 +105,9 @@ func (s *server) ExecuteCode(ctx context.Context, req *execute.ExecuteRequest) (
 	rsp.Status = rRes.Status
 	rsp.Stderr = rRes.Stderr
 	rsp.Stdout = rRes.Stdout
-	rsp.Time = int64(rRes.TimeReal)
+	rsp.Time = rRes.TimeReal.Nanoseconds()
 	rsp.Memory = rRes.MemoKiBReal
+	rsp.Results = rRes.CaseRusults
 	return rsp, nil
 }
 

@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-var path = "../temp"
+var path = "../../../temp"
 
 //基准测试结果：
 
@@ -18,7 +18,7 @@ func init() {
 		Id:           1001,
 		InstanceName: "test_compile",
 		Mode:         "prod",
-		StoragePath:  "../../logs",
+		StoragePath:  "../../../logs",
 	}
 	pkg.InitLogger(config)
 }
