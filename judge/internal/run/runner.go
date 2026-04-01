@@ -20,16 +20,16 @@ type RunResult struct { // 运行结果
 	Stdout      string        // 标准输出：程序打印到标准输出的内容，通常是运行结果
 	Stderr      string        // 标准错误：程序打印到标准错误的内容，如错误信息、段错误详情
 	TimeReal    time.Duration // 真实花费的时间：程序从启动到结束的实际耗时
-	MemoKiBReal int           // 真实花费的内存大小：程序运行过程中占用的最大内存（KB）
+	MemoKiBReal int64         // 真实花费的内存大小：程序运行过程中占用的最大内存（KB）
 }
 
 type Runner struct {
 	Bin          string        // 可执行文件路径
 	CpuLimit     time.Duration // CPU资源限制
-	MemoKiBLimit int           // 内存资源限制
+	MemoKiBLimit int64         // 内存资源限制
 }
 
-func (r *Runner) runSandboxed(ctx context.Context) (*RunResult, error) {
+func (r *Runner) RunSandboxed(ctx context.Context) (*RunResult, error) {
 	zap.L().Info(r.Bin)
 	lastIndex := strings.LastIndex(r.Bin, "/") // 截取可执行程序的分隔符
 	dir := r.Bin[:lastIndex]                   // 获取创建的临时目录
@@ -56,7 +56,7 @@ func (r *Runner) runSandboxed(ctx context.Context) (*RunResult, error) {
 	// 限制使用资源 --> 根据实际使用和限制进行比较
 	start := time.Now()                 // 用于记录实际运行的时间
 	if err := cmd.Start(); err != nil { // 启动子进程 这里不用Run是因为要区别是正常退出还是时钟到期
-		zap.L().Debug("execute faile", zap.String("error", err.Error()))
+		zap.L().Error("execute fail", zap.String("error", err.Error()))
 		return nil, err
 	}
 	zap.L().Debug("execute process begin")
@@ -77,14 +77,14 @@ func (r *Runner) runSandboxed(ctx context.Context) (*RunResult, error) {
 				}
 			}
 		}
-		res.Status = "TLE" //  超时
+		res.Status = "TLE"        //  超时说明
+		res.TimeReal = r.CpuLimit // 超时
+		res.ExitCode = -1
+		<-waitCh // 为了能够获取正常的ProcessState状态 确保 SysUsage() 不会发生nil指针引用
+		zap.L().Debug("get processstate")
 	case err := <-waitCh: // 执行程序正常退出
 		zap.L().Debug("execute bin end")
-		res.TimeReal = time.Since(start)                                     // 获取执行的时间
-		if rusage, ok := cmd.ProcessState.SysUsage().(*syscall.Rusage); ok { // 获取该程序资源使用
-			// 获取Process的使用情况
-			res.MemoKiBReal = int(rusage.Maxrss)
-		}
+		res.TimeReal = time.Since(start) // 获取执行的时间
 		if err != nil {
 			var exitErr *exec.ExitError
 			if errors.As(err, &exitErr) {
@@ -102,9 +102,19 @@ func (r *Runner) runSandboxed(ctx context.Context) (*RunResult, error) {
 				}
 			}
 		}
-		if res.MemoKiBReal > r.MemoKiBLimit {
-			res.Status = "MLE" // 超过内存限制
-			res.ExitCode = -1  // 重置退出码
+	}
+	// 下面获取 memory、stdout、stderr
+	if cmd.ProcessState == nil {
+		zap.L().Error("Get a Process State faile...can't get a memory information")
+	} else {
+		if rusage, ok := cmd.ProcessState.SysUsage().(*syscall.Rusage); ok { // 获取该程序资源使用
+			// 获取Process的使用情况
+			res.MemoKiBReal = rusage.Maxrss
+			zap.L().Debug("real memory", zap.Any("real size(KB)", res.MemoKiBReal), zap.Any("limit size(KB)", r.MemoKiBLimit))
+			if res.MemoKiBReal > r.MemoKiBLimit {
+				res.Status = "MLE" // 超过内存限制
+				res.ExitCode = -1  // 重置退出码
+			}
 		}
 	}
 	// 退出说明数据已经写好了
@@ -113,6 +123,12 @@ func (r *Runner) runSandboxed(ctx context.Context) (*RunResult, error) {
 	if len(stdout.Buffer) >= common.MaxOutPut || len(stderr.Buffer) >= common.MaxOutPut {
 		res.Status = "OLE"
 	}
-	zap.L().Debug("return a RunResult")
+	if res.Status == "TLE" {
+		res.Stderr = "Time Limit Exceeded" // 记录错误信息
+	}
+	if res.Status == "MLE" {
+		res.Stderr = "Memory Limit Exceeded"
+	}
+	zap.L().Info("return a RunResult")
 	return res, nil
 }
