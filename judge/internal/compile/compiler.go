@@ -15,14 +15,17 @@ import (
 // 实现代码的编译服务
 // 实现两种程序的编译 C++/Go
 
+type Type int32
+
 const (
-	GoType = iota
+	UnKnownType Type = iota
+	GoType
 	CppType
 )
 
 // 编译者
 type Compiler struct {
-	CodeType uint16 // 代码的类型
+	CodeType Type   // 代码的类型
 	Code     string // 完整代码
 }
 
@@ -46,8 +49,8 @@ func (c *Compiler) Compile(ctx context.Context, storagePath string) (*CompileRes
 	case CppType:
 		return c.cppCompile(ctx, storagePath)
 	default:
-		zap.L().Error("unkown Code type")
-		return nil, fmt.Errorf("unkown Code type")
+		zap.L().Error("unknown Code type")
+		return nil, fmt.Errorf("unknown Code type")
 	}
 }
 
@@ -79,8 +82,8 @@ func (c *Compiler) goCompile(ctx context.Context, storagePath string) (*CompileR
 	cmd.Stderr = stderr                                                                                     // 重定向标准错误
 	err = cmd.Run()                                                                                         // 创建子进程并且运行，父进程在同步等待子进程完成
 	if err != nil {                                                                                         // 编译发生错误
-		zap.L().Debug("compile fail...", zap.String("src", src), zap.String("error", err.Error()))
-		return &CompileResult{Stderr: stderr.String(), Status: "CE"}, err // 发生错误
+		zap.L().Info("compile fail...", zap.String("src", src), zap.String("error", err.Error()))
+		return &CompileResult{Stderr: stderr.String(), Status: "CE"}, nil // 发生错误
 	}
 	// 编译成功
 	//zap.L().Debug("compile success...", zap.String("src", src), zap.String("bin", bin))
@@ -115,8 +118,8 @@ func (c *Compiler) cppCompile(ctx context.Context, storagePath string) (*Compile
 	cmd.Stderr = stderr                                                                                 // 重定向标准错误
 	err = cmd.Run()                                                                                     // 创建子进程并且运行
 	if err != nil {                                                                                     // 编译发生错误
-		zap.L().Debug("compile fail...", zap.String("src", src), zap.String("error", err.Error()))
-		return &CompileResult{Stderr: stderr.String(), Status: "CE"}, err // 发生错误
+		zap.L().Error("compile fail...", zap.String("src", src), zap.String("error", err.Error()))
+		return &CompileResult{Stderr: stderr.String(), Status: "CE"}, nil // 发生错误
 	}
 	// 编译成功
 	//zap.L().Debug("compile success...", zap.String("src", src), zap.String("bin", bin))
