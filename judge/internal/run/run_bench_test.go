@@ -3,9 +3,16 @@ package run
 import (
 	"context"
 	"online-oj/judge/internal/compile"
+	"os"
 	"testing"
 	"time"
 )
+
+var path = "../temp"
+
+func init() {
+	os.Mkdir(path, 0755) // 创建了临时文件还没有删除 运行完成bin之后删除保存 tempDir
+}
 
 // 基准测试公共初始化：只执行一次
 // go test -bench ^BenchmarkMain$ -benchmem -run ^$ -count=5 只跑这一个测试
@@ -14,7 +21,6 @@ func BenchmarkMain(b *testing.B) {
 		CpuLimit:     2 * time.Second,
 		MemoKiBLimit: 64 * 1024,
 	}
-	path := "../temp"
 	// ==========================
 	// Go 语言三种规模代码
 	// ==========================
