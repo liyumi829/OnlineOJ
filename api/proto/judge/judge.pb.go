@@ -23,10 +23,11 @@ const (
 
 type CaseResult struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Passed        bool                   `protobuf:"varint,1,opt,name=passed,proto3" json:"passed,omitempty"`
+	Passed        bool                   `protobuf:"varint,1,opt,name=passed,proto3" json:"passed,omitempty"` // 是否通过
 	Time          int64                  `protobuf:"varint,2,opt,name=time,proto3" json:"time,omitempty"`     // 本组耗时
 	Memory        int64                  `protobuf:"varint,3,opt,name=memory,proto3" json:"memory,omitempty"` // 本组内存
-	Output        string                 `protobuf:"bytes,4,opt,name=output,proto3" json:"output,omitempty"`  // 用户程序输出
+	Status        string                 `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`  // 当前测试用例状态
+	Output        string                 `protobuf:"bytes,5,opt,name=output,proto3" json:"output,omitempty"`  // 用户程序输出
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -80,6 +81,13 @@ func (x *CaseResult) GetMemory() int64 {
 		return x.Memory
 	}
 	return 0
+}
+
+func (x *CaseResult) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
 }
 
 func (x *CaseResult) GetOutput() string {
@@ -147,7 +155,7 @@ type JudgeRequest struct {
 	CodeType      int32                  `protobuf:"varint,2,opt,name=codeType,proto3" json:"codeType,omitempty"`   // 用户代码类型
 	CpuLimit      int64                  `protobuf:"varint,3,opt,name=cpuLimit,proto3" json:"cpuLimit,omitempty"`   // CPU限制
 	MemoLimit     int64                  `protobuf:"varint,4,opt,name=memoLimit,proto3" json:"memoLimit,omitempty"` // 内存限制
-	TestCases     []*TestCase            `protobuf:"bytes,5,rep,name=testCases,proto3" json:"testCases,omitempty"`
+	TestCases     []*TestCase            `protobuf:"bytes,5,rep,name=testCases,proto3" json:"testCases,omitempty"`  // 测试用例
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -219,12 +227,12 @@ func (x *JudgeRequest) GetTestCases() []*TestCase {
 
 type JudgeResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Status        string                 `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`  // 状态 AC/WA/TLE/MLE
-	Stdout        string                 `protobuf:"bytes,2,opt,name=stdout,proto3" json:"stdout,omitempty"`  // 标准输出
-	Stderr        string                 `protobuf:"bytes,3,opt,name=stderr,proto3" json:"stderr,omitempty"`  // 标准错误
-	Time          int64                  `protobuf:"varint,4,opt,name=time,proto3" json:"time,omitempty"`     // 实际运行时间
-	Memory        int64                  `protobuf:"varint,5,opt,name=memory,proto3" json:"memory,omitempty"` // 实际使用内存
-	Results       []*CaseResult          `protobuf:"bytes,6,rep,name=results,proto3" json:"results,omitempty"`
+	Status        string                 `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`   // 状态 AC/WA/TLE/MLE
+	Stdout        string                 `protobuf:"bytes,2,opt,name=stdout,proto3" json:"stdout,omitempty"`   // 标准输出
+	Stderr        string                 `protobuf:"bytes,3,opt,name=stderr,proto3" json:"stderr,omitempty"`   // 标准错误
+	Time          int64                  `protobuf:"varint,4,opt,name=time,proto3" json:"time,omitempty"`      // 实际运行时间(ns)
+	Memory        int64                  `protobuf:"varint,5,opt,name=memory,proto3" json:"memory,omitempty"`  // 实际使用内存
+	Results       []*CaseResult          `protobuf:"bytes,6,rep,name=results,proto3" json:"results,omitempty"` // 测试结果
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -305,13 +313,14 @@ var File_judge_proto protoreflect.FileDescriptor
 
 const file_judge_proto_rawDesc = "" +
 	"\n" +
-	"\vjudge.proto\x12\x05judge\"h\n" +
+	"\vjudge.proto\x12\x05judge\"\x80\x01\n" +
 	"\n" +
 	"CaseResult\x12\x16\n" +
 	"\x06passed\x18\x01 \x01(\bR\x06passed\x12\x12\n" +
 	"\x04time\x18\x02 \x01(\x03R\x04time\x12\x16\n" +
 	"\x06memory\x18\x03 \x01(\x03R\x06memory\x12\x16\n" +
-	"\x06output\x18\x04 \x01(\tR\x06output\"8\n" +
+	"\x06status\x18\x04 \x01(\tR\x06status\x12\x16\n" +
+	"\x06output\x18\x05 \x01(\tR\x06output\"8\n" +
 	"\bTestCase\x12\x14\n" +
 	"\x05input\x18\x01 \x01(\tR\x05input\x12\x16\n" +
 	"\x06output\x18\x02 \x01(\tR\x06output\"\xa7\x01\n" +
