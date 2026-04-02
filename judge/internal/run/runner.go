@@ -144,6 +144,7 @@ func (r *Runner) RunSandboxed(ctx context.Context) (*RunResult, error) {
 		caseResult.Passed = passed
 		caseResult.Time = timeReal.Nanoseconds()
 		caseResult.Memory = memoRealKB
+		caseResult.Status = caseStatus
 		caseResult.Output = outStr
 		res.CaseRusults = append(res.CaseRusults, caseResult) // 添加结果到集合
 		zap.L().Debug("Case Rusults", zap.Int("len", len(res.CaseRusults)))

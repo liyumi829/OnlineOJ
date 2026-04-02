@@ -104,7 +104,8 @@ func (s *server) Judge(ctx context.Context, req *judge.JudgeRequest) (*judge.Jud
 	// 正常结束
 	rsp.Status = rRes.Status
 	rsp.Stderr = rRes.Stderr
-	rsp.Stdout = rRes.Stdout
+	rsp.Stdout = summarizeCaseStatus(rRes.CaseRusults)
+	zap.L().Debug("", zap.String("stdout", rsp.Stdout))
 	rsp.Time = rRes.TimeReal.Nanoseconds()
 	rsp.Memory = rRes.MemoKiBReal
 	rsp.Results = rRes.CaseRusults
