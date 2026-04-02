@@ -70,6 +70,7 @@ func printResp(resp *judge.JudgeResponse, err error) {
 	for i, r := range resp.Results {
 		fmt.Printf("🔹 用例 #%d\n", i+1)
 		fmt.Printf("   ✅ 是否通过: %t\n", r.Passed)
+		fmt.Printf("   🚗 结果状态: %s\n", r.Status)
 		fmt.Printf("   📤 实际输出: %s\n", r.Output)
 		fmt.Printf("   ⏱  用例耗时: %.3f ms\n", float64(r.Time)/1_000_000.0)
 		fmt.Printf("   📊 用例内存: %d KB\n", r.Memory)
