@@ -7,6 +7,9 @@ import (
 	"online-oj/judge/internal/common"
 	"os"
 	"os/exec"
+	"reflect"
+	"sort"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -135,7 +138,8 @@ func (r *Runner) RunSandboxed(ctx context.Context) (*RunResult, error) {
 		// 判断是否通过测试
 		outStr := stdout.String()    // 拿到标准输出
 		stdErrStr := stderr.String() // 拿到标准错误
-		outputMatch := strings.TrimSpace(outStr) == strings.TrimSpace(testCase.Output)
+		// outputMatch := strings.TrimSpace(outStr) == strings.TrimSpace(testCase.Output)
+		outputMatch := compareAnswer(outStr, testCase.Output)
 		passed := caseStatus == "AC" && outputMatch
 		if !passed && caseStatus == "AC" && !outputMatch {
 			caseStatus = "WA"
@@ -175,4 +179,52 @@ func (r *Runner) RunSandboxed(ctx context.Context) (*RunResult, error) {
 		zap.String("final_status", res.Status),
 		zap.Int("total_cases", len(r.TestCases)))
 	return res, nil
+}
+
+// CompareAnswer 万能答案比较
+// 支持：
+// [0,1]
+// 0 1
+// 0,1
+// [ 0 , 1 ]
+// [0, 1]
+// 全部能正确比较！
+func compareAnswer(userOut, stdOut string) bool {
+	// 统一预处理：变成纯数字数组
+	userArr := parseToIntArray(userOut)
+	stdArr := parseToIntArray(stdOut)
+
+	// 排序（支持任意顺序返回）
+	sort.Ints(userArr)
+	sort.Ints(stdArr)
+
+	return reflect.DeepEqual(userArr, stdArr)
+}
+
+// parseToIntArray 超级万能：把任何输出变成 []int
+func parseToIntArray(s string) []int {
+	// 1. 去掉所有符号：[ ] { } ( )
+	s = strings.ReplaceAll(s, "[", "")
+	s = strings.ReplaceAll(s, "]", "")
+	s = strings.ReplaceAll(s, "{", "")
+	s = strings.ReplaceAll(s, "}", "")
+	s = strings.ReplaceAll(s, "(", "")
+	s = strings.ReplaceAll(s, ")", "")
+
+	// 2. 把逗号换成空格（统一分隔符）
+	s = strings.ReplaceAll(s, ",", " ")
+
+	// 3. 按空格分割（自动处理多个空格）
+	parts := strings.Fields(s)
+
+	// 4. 转成整数数组
+	res := make([]int, 0, len(parts))
+	for _, p := range parts {
+		num, err := strconv.Atoi(strings.TrimSpace(p))
+		if err == nil {
+			res = append(res, num)
+		}
+	}
+
+	return res
 }
