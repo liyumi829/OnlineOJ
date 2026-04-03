@@ -80,45 +80,57 @@ func printResp(resp *judge.JudgeResponse, err error) {
 	fmt.Println()
 }
 
-// ====================== 1. 两数之和 - Go ======================
+// ====================== 1. 两数之和 - Go（LeetCode标准格式）======================
 func Test_Judge_TwoSum_Go(t *testing.T) {
 	sep()
 	defer sep()
-	t.Log("🧪 测试：两数之和 - Go")
+	t.Log("🧪 测试：两数之和 - Go | 输入输出数组格式 [1,2,3] | 乱序自动AC")
 
 	code := `
 package main
-import "fmt"
+import (
+	"bufio"
+	"fmt"
+	"os"
+	"strconv"
+	"strings"
+)
 func twoSum(nums []int, target int) []int {
-    m := make(map[int]int)
-    for i, num := range nums {
-        if j, ok := m[target-num]; ok {
-            return []int{j, i}
-        }
-        m[num] = i
-    }
-    return nil
+	hash := make(map[int]int)
+	for i, num := range nums {
+		if j, ok := hash[target-num]; ok {
+			return []int{j, i}
+		}
+		hash[num] = i
+	}
+	return []int{-1, -1}
 }
 func main() {
-    var n, target int
-    fmt.Scan(&n)
-    nums := make([]int, n)
-    for i := 0; i < n; i++ {
-        fmt.Scan(&nums[i])
-    }
-    fmt.Scan(&target)
-    res := twoSum(nums, target)
-    fmt.Println(res[0], res[1])
+	sc := bufio.NewScanner(os.Stdin)
+	sc.Scan()
+	line := sc.Text()
+	line = line[1 : len(line)-1]
+	parts := strings.Split(line, ",")
+	nums := make([]int, 0, len(parts))
+	for _, p := range parts {
+		num, _ := strconv.Atoi(strings.TrimSpace(p))
+		nums = append(nums, num)
+	}
+	sc.Scan()
+	target, _ := strconv.Atoi(sc.Text())
+	res := twoSum(nums, target)
+	fmt.Printf("[%d,%d]\n", res[0], res[1])
 }`
 
 	req := &judge.JudgeRequest{
 		Code:      code,
-		CodeType:  codeTypeGo,
+		CodeType:  1,
 		CpuLimit:  cpuLimitNormal,
 		MemoLimit: memLimitNormal,
 		TestCases: []*judge.TestCase{
-			{Input: "4\n2 7 11 15\n9", Output: "0 1"},
-			{Input: "3\n3 2 4\n6", Output: "1 2"},
+			{Input: "[2,7,11,15]\n9", Output: "[0,1]"},
+			{Input: "[3,2,4]\n6", Output: "[1,2]"},
+			{Input: "[3,3]\n6", Output: "[0,1]"},
 		},
 	}
 
@@ -126,46 +138,60 @@ func main() {
 	printResp(resp, err)
 }
 
-// ====================== 2. 两数之和 - C++ ======================
+// ====================== 2. 两数之和 - C++（LeetCode标准格式）======================
 func Test_Judge_TwoSum_Cpp(t *testing.T) {
 	sep()
 	defer sep()
-	t.Log("🧪 测试：两数之和 - C++")
+	t.Log("🧪 测试：两数之和 - C++ | 输入输出数组格式 [1,2,3] | 乱序自动AC")
 
 	code := `
 #include <iostream>
 #include <vector>
+#include <sstream>
+#include <string>
 #include <unordered_map>
 using namespace std;
-vector<int> twoSum(vector<int>& nums, int target) {
-    unordered_map<int, int> m;
-    for (int i=0; i<nums.size(); i++) {
-        if (m.count(target-nums[i])) {
-            return {m[target-nums[i]], i};
+
+class Solution {
+public:
+    vector<int> twoSum(vector<int>& nums, int target) {
+        unordered_map<int, int> map;
+        for (int i = 0; i < nums.size(); ++i) {
+            if (map.count(target - nums[i])) {
+                return {map[target - nums[i]], i};
+            }
+            map[nums[i]] = i;
         }
-        m[nums[i]] = i;
+        return {-1, -1};
     }
-    return {};
-}
+};
+
 int main() {
-    int n, target;
-    cin >> n;
-    vector<int> nums(n);
-    for (int i=0; i<n; i++) cin >> nums[i];
+    string line;
+    getline(cin, line);
+    line = line.substr(1, line.size() - 2);
+    stringstream ss(line);
+    vector<int> nums;
+    string numStr;
+    while (getline(ss, numStr, ',')) {
+        nums.push_back(stoi(numStr));
+    }
+    int target;
     cin >> target;
-    auto res = twoSum(nums, target);
-    cout << res[0] << " " << res[1] << endl;
+    Solution sol;
+    vector<int> res = sol.twoSum(nums, target);
+    cout << "[" << res[0] << "," << res[1] << "]" << endl;
     return 0;
 }`
 
 	req := &judge.JudgeRequest{
 		Code:      code,
-		CodeType:  codeTypeCpp,
+		CodeType:  2,
 		CpuLimit:  cpuLimitNormal,
 		MemoLimit: memLimitNormal,
 		TestCases: []*judge.TestCase{
-			{Input: "4\n2 7 11 15\n9", Output: "0 1"},
-			{Input: "3\n3 2 4\n6", Output: "1 2"},
+			{Input: "[2,7,11,15]\n9", Output: "[0,1]"},
+			{Input: "[3,2,4]\n6", Output: "[1,2]"},
 		},
 	}
 
@@ -173,42 +199,50 @@ int main() {
 	printResp(resp, err)
 }
 
-// ====================== 3. 回文数 - Go ======================
+// ====================== 3. 回文数 - Go（LeetCode标准格式）======================
 func Test_Judge_Palindrome_Go(t *testing.T) {
 	sep()
 	defer sep()
-	t.Log("🧪 测试：回文数 - Go")
+	t.Log("🧪 测试：回文数 - Go | LeetCode标准输入输出")
 
 	code := `
 package main
-import "fmt"
+import (
+	"bufio"
+	"fmt"
+	"os"
+	"strconv"
+)
 func isPalindrome(x int) bool {
-    if x < 0 || (x%10 == 0 && x != 0) {
-        return false
-    }
-    rev := 0
-    org := x
-    for x > 0 {
-        rev = rev*10 + x%10
-        x /= 10
-    }
-    return org == rev
+	if x < 0 {
+		return false
+	}
+	original := x
+	reverted := 0
+	for x > 0 {
+		reverted = reverted*10 + x%10
+		x /= 10
+	}
+	return original == reverted
 }
 func main() {
-    var x int
-    fmt.Scan(&x)
-    fmt.Println(isPalindrome(x))
+	sc := bufio.NewScanner(os.Stdin)
+	sc.Scan()
+	x, _ := strconv.Atoi(sc.Text())
+	res := isPalindrome(x)
+	fmt.Println(res)
 }`
 
 	req := &judge.JudgeRequest{
 		Code:      code,
-		CodeType:  codeTypeGo,
+		CodeType:  1,
 		CpuLimit:  cpuLimitNormal,
 		MemoLimit: memLimitNormal,
 		TestCases: []*judge.TestCase{
 			{Input: "121", Output: "true"},
 			{Input: "-121", Output: "false"},
 			{Input: "10", Output: "false"},
+			{Input: "0", Output: "true"},
 		},
 	}
 
@@ -216,39 +250,47 @@ func main() {
 	printResp(resp, err)
 }
 
-// ====================== 4. 回文数 - C++ ======================
+// ====================== 4. 回文数 - C++（LeetCode标准格式）======================
 func Test_Judge_Palindrome_Cpp(t *testing.T) {
 	sep()
 	defer sep()
-	t.Log("🧪 测试：回文数 - C++")
+	t.Log("🧪 测试：回文数 - C++ | LeetCode标准输入输出")
 
 	code := `
 #include <iostream>
 using namespace std;
-bool isPalindrome(int x) {
-    if (x < 0 || (x % 10 == 0 && x != 0)) return false;
-    int rev = 0, org = x;
-    while (x > 0) {
-        rev = rev*10 + x%10;
-        x /= 10;
+
+class Solution {
+public:
+    bool isPalindrome(int x) {
+        if (x < 0) return false;
+        long long ori = x;
+        long long rev = 0;
+        while (x > 0) {
+            rev = rev * 10 + x % 10;
+            x /= 10;
+        }
+        return ori == rev;
     }
-    return org == rev;
-}
+};
+
 int main() {
     int x;
     cin >> x;
-    cout << boolalpha << isPalindrome(x) << endl;
+    Solution sol;
+    cout << boolalpha << sol.isPalindrome(x) << endl;
     return 0;
 }`
 
 	req := &judge.JudgeRequest{
 		Code:      code,
-		CodeType:  codeTypeCpp,
+		CodeType:  2,
 		CpuLimit:  cpuLimitNormal,
 		MemoLimit: memLimitNormal,
 		TestCases: []*judge.TestCase{
 			{Input: "121", Output: "true"},
 			{Input: "-121", Output: "false"},
+			{Input: "12321", Output: "true"},
 		},
 	}
 
