@@ -14,13 +14,7 @@ var path = "../../../temp"
 
 // 初始化日志（必须 否则测试中 zap.L() 会 panic）
 func init() {
-	config := pkglogger.Config{
-		Id:           1001,
-		InstanceName: "test_compile",
-		Mode:         "prod",
-		StoragePath:  "../../../logs",
-	}
-	pkglogger.InitLogger(config)
+	pkglogger.InitLogger("debug", "../../../logs", "test_compile", 1001)
 }
 
 // 辅助函数：打印编译结果
