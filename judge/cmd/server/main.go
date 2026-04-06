@@ -22,16 +22,6 @@ var (
 	id           = flag.Uint64("id", 1, "instance id")
 )
 
-// initLogger 初始化日志
-func initLogger(mode string, logPath string, instanceName string, instanceID uint64) {
-	pkglogger.InitLogger(pkglogger.Config{
-		Id:           instanceID,
-		InstanceName: instanceName,
-		Mode:         mode,
-		StoragePath:  logPath,
-	})
-}
-
 func main() {
 	// 解析参数、配置
 	flag.Parse()                                           // 命令行参数
@@ -43,7 +33,7 @@ func main() {
 		zap.String("logPath", cfg.App.LogPath),
 		zap.String("tempPath", cfg.App.TempPath))
 	// 初始化日志
-	initLogger(*mode, cfg.App.LogPath, *instanceName, *id)
+	pkglogger.InitLogger(*mode, cfg.App.LogPath, *instanceName, *id)
 
 	addr := net.JoinHostPort(*host, *port)
 

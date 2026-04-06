@@ -22,7 +22,7 @@ func TestInitLogger_DebugMode(t *testing.T) {
 	}
 
 	// 初始化
-	InitLogger(config)
+	initLogger(config)
 
 	// 验证全局 Logger 不为空
 	if Logger == nil {
@@ -48,7 +48,7 @@ func TestInitLogger_ProdMode(t *testing.T) {
 	}
 
 	// 初始化
-	InitLogger(config)
+	initLogger(config)
 
 	if Logger == nil {
 		t.Fatal("prod 模式下 Logger 初始化失败，logger 为 nil")
@@ -69,7 +69,7 @@ func TestInitLogger_ProdMode(t *testing.T) {
 	t.Log("✅ prod 模式日志器测试通过\n")
 }
 
-// 测试3：不同 Id & 不同实例名称// InitLogger 初始化的是全局logger
+// 测试3：不同 Id & 不同实例名称// initLogger 初始化的是全局logger
 // 只有最后一个实例其效果
 func TestInitLogger_MultiInstance(t *testing.T) {
 	testCases := []struct {
@@ -98,7 +98,7 @@ func TestInitLogger_MultiInstance(t *testing.T) {
 	for _, tc := range testCases {
 		config := tc.config
 		t.Run(tc.name, func(t *testing.T) {
-			InitLogger(config)
+			initLogger(config)
 			if Logger == nil {
 				t.Fatal("Logger 初始化失败")
 			}
@@ -117,7 +117,7 @@ func TestInitLogger_DefaultMode(t *testing.T) {
 		Mode:         "", // 空，走默认 debug
 	}
 
-	InitLogger(config)
+	initLogger(config)
 
 	if Logger == nil {
 		t.Fatal("默认模式 Logger 初始化失败")
@@ -137,7 +137,7 @@ func TestZapGlobalLogger(t *testing.T) {
 		Mode:         "debug",
 	}
 
-	InitLogger(config)
+	initLogger(config)
 
 	// 使用全局 Logger
 	zap.L().Info("通过 zap.L() 输出日志")
@@ -154,7 +154,7 @@ func TestLogger_Rotate_DeleteOldLog(t *testing.T) {
 		Mode:         "prod",
 		StoragePath:  "../../logs",
 	}
-	InitLogger(config)
+	initLogger(config)
 
 	logDir := "../../logs"
 	instanceDir := filepath.Join(logDir, config.InstanceName)

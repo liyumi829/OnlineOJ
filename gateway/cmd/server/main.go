@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"io"
 	"net"
 	"online-oj/gateway/internal/config"
 	"online-oj/gateway/internal/control"
@@ -16,9 +17,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
-	"gorm.io/driver/mysql"
-	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
 )
 
 var (
@@ -35,25 +33,6 @@ var (
 	judgeAddrs = flag.String("judge-addrs", "", "judge grpc addresses, comma separated") // 现在不支持多个，方便后面进行扩展
 )
 
-func initDB(dsn string) *gorm.DB {
-	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Info), // 打印 SQL
-	})
-	if err != nil {
-		zap.L().Fatal("connect database failed", zap.String("error", err.Error()))
-	}
-	return db
-}
-
-func initLogger(mode string, logPath string, instanceName string, instanceID uint64) {
-	pkglogger.InitLogger(pkglogger.Config{
-		Id:           instanceID,
-		InstanceName: instanceName,
-		Mode:         mode,
-		StoragePath:  logPath,
-	})
-}
-
 func main() {
 	// 解析参数和配置
 	flag.Parse()                                           // 命令行参数解析
@@ -64,11 +43,13 @@ func main() {
 	checkConfig(cfg) // 检查密码
 
 	// 设置全局日志模式
-	initLogger(*mode, cfg.App.LogPath, *instanceName, *id) // 初始日志
+	pkglogger.InitLogger(*mode, cfg.App.LogPath, *instanceName, *id) // 初始日志
 
 	// 创建服务
 	// 1. Gin
 	if *mode == "prod" {
+		gin.DisableConsoleColor()
+		gin.DefaultWriter = io.Discard
 		gin.SetMode(gin.ReleaseMode) // 设置gin框架日志模式
 	}
 	r := gin.Default()               // 创建一个默认的Gin框架引擎实例
@@ -85,7 +66,7 @@ func main() {
 		zap.L().Fatal("rpc client init failed", zap.String("error", err.Error()))
 	}
 	// 3. Gorm服务
-	repo := repository.NewRepository(initDB(cfg.MySQLDSN())) // 初始化仓储层
+	repo := repository.NewRepository(repository.InitDB(cfg.MySQLDSN(), *mode)) // 初始化仓储层
 	// 4. 初始化业务服务
 	problemService := service.NewProblemService(repo)
 	judgeService := service.NewJudgeService(conn, repo)

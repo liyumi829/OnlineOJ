@@ -30,7 +30,7 @@ type Config struct {
 //	instanceName: 实例名称。为每一个执行程序构建唯一的实例名称的日志文件
 //
 // 返回: 无
-func InitLogger(config Config) {
+func initLogger(config Config) {
 	var level zapcore.Level    // 日志等级
 	if config.Mode == "prod" { // 如果项目是生产环境
 		level = zap.InfoLevel // 只打印Info以上的信息
@@ -58,12 +58,11 @@ func InitLogger(config Config) {
 		_ = os.Mkdir(filepath.Join(logDir, config.InstanceName), 0755) // 创建目录
 		lumberLogger := &lumberjack.Logger{
 			Filename:   filepath.Join(logDir, config.InstanceName, strconv.FormatUint(config.Id, 10)+".log"), // 日志文件
-			MaxSize:    1,                                                                                    // 单个文件不超过128MB
+			MaxSize:    128,                                                                                  // 单个文件不超过128MB
 			MaxBackups: 30,                                                                                   //最多保存30个日志文件
 			MaxAge:     7,                                                                                    // 最多保存七天
 			Compress:   true,                                                                                 // 压缩旧日志为gz
 			LocalTime:  true,                                                                                 // 使用本地时间
-
 		}
 		fileEncoder := zapcore.NewJSONEncoder(encoderConfig)        // 创建Json编码器
 		fileWriteSyncer := zapcore.AddSync(lumberLogger)            // 绑定lumber日志写入器到zap中
@@ -78,4 +77,14 @@ func InitLogger(config Config) {
 		zap.AddStacktrace(zap.ErrorLevel)) // Error以上显示调用堆栈
 	// 全局logger创建完成
 	zap.ReplaceGlobals(Logger) // 替换全局日志器，可使用zap.L()调用
+}
+
+// InitLogger 外部使用初始化
+func InitLogger(mode string, logPath string, instanceName string, instanceID uint64) {
+	initLogger(Config{
+		Id:           instanceID,
+		InstanceName: instanceName,
+		Mode:         mode,
+		StoragePath:  logPath,
+	})
 }
