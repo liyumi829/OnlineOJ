@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{{.ID}}. {{.TitleNumber}}</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.2.6/ace.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.2.6/ext-language_tools.js"></script>
+    <script src="http://code.jquery.com/jquery-2.1.1.min.js"></script>
+    
+    <style>
+        :root { --primary-color: #26bb9c; --black-bg: #1e1e1e; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { margin: 0; display: flex; flex-direction: column; height: 100vh; font-family: -apple-system, system-ui, "Segoe UI", Roboto; overflow: hidden; }
+
+        .navbar { height: 50px; flex-shrink: 0; background: #000; display: flex; align-items: center; padding: 0 20px; color: white; }
+        .navbar a { color: white; text-decoration: none; margin-right: 20px; font-size: 14px; }
+
+        .main-container { flex: 1; display: flex; min-height: 0; border-bottom: 1px solid #ddd; }
+        .left-panel { width: 45%; border-right: 1px solid #ddd; display: flex; flex-direction: column; }
+        .tab-header { background: #f5f5f5; display: flex; border-bottom: 1px solid #ddd; }
+        .tab-btn { padding: 10px 20px; cursor: pointer; border: none; background: none; }
+        .tab-btn.active { background: white; border-top: 2px solid var(--primary-color); font-weight: bold; }
+        .content-area { flex: 1; padding: 20px; overflow-y: auto; line-height: 1.6; }
+
+        .right-panel { width: 55%; display: flex; flex-direction: column; background: var(--black-bg); }
+        .editor-toolbar { height: 40px; background: #333; display: flex; align-items: center; padding: 0 10px; gap: 10px; }
+        #code-editor { flex: 1; font-size: 16px; }
+
+        /* 底部栏：双层结构 */
+        .bottom-bar { 
+            background: #fff; 
+            border-top: 1px solid #ddd; 
+            padding: 10px 20px;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #details-section {
+            display: none; 
+            padding: 10px 0;
+            max-height: 250px;
+            overflow-y: auto;
+            border-bottom: 1px solid #eee;
+            margin-bottom: 10px;
+        }
+
+        .action-row { display: flex; justify-content: space-between; align-items: center; }
+
+        /* 按钮样式 */
+        .btn-submit { background: var(--primary-color); color: white; border: none; padding: 8px 25px; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: bold;}
+        .btn-details { background: #34495e; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; font-size: 14px; display: none; }
+        .btn-submit:hover, .btn-details:hover { opacity: 0.9; }
+
+        /* 状态标签颜色修复 */
+        .res-badge { padding: 3px 10px; border-radius: 4px; color: white; font-weight: bold; margin-right: 10px; font-size: 13px; }
+        .AC { background: #2ecc71; }   /* 绿色 */
+        .WA { background: #e74c3c; }   /* 红色 */
+        .TLE, .MLE { background: #f39c12; } /* 橙色 */
+        .CE { background: #8e44ad; }   /* 紫色 */
+        .RE { background: #e67e22; }   /* 深橙色 - 修复RE看不清的问题 */
+        
+        .case-item { display: inline-block; width: 28px; height: 28px; line-height: 28px; text-align: center; margin: 3px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; font-weight: bold; }
+        #save-indicator { color: #2ecc71; font-weight: bold; font-size: 13px; display: none; margin-left:15px;}
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <a href="/problems">返回题库</a>
+        <span style="flex:1"></span>
+        <span>用户：OJ大佬</span>
+    </div>
+
+    <div class="main-container">
+        <div class="left-panel">
+            <div class="tab-header">
+                <button class="tab-btn active" onclick="switchLeftTab('desc')">题目描述</button>
+                <button class="tab-btn" onclick="switchLeftTab('case')">查看用例</button>
+            </div>
+            <div id="desc-area" class="content-area">
+                <h3>{{.ID}}. {{.TitleNumber}} <span style="font-size: 14px; color: #888;">[{{.Star}}]</span></h3>
+                <pre style="white-space: pre-wrap; margin-top: 15px;">{{.Desc}}</pre>
+            </div>
+            <div id="case-area" class="content-area" style="display:none;">
+                <h3 style="margin-bottom: 15px;">预设测试用例</h3>
+                {{ range .TestCases }}
+                <pre style="background:#f9f9f9; padding:12px; border-radius:6px; border:1px dashed #ccc; margin-bottom:10px;"><b>输入：</b>{{ .Input }}<b><br>输出：</b>{{ .Output }}</pre>
+                {{ end }}
+            </div>
+        </div>
+
+        <div class="right-panel">
+            <div class="editor-toolbar">
+                <select id="language-select" onchange="changeLanguage()" style="padding: 2px 5px;">
+                    <option value="2">C++ (G++ 11)</option>
+                    <option value="1">Go (1.25.5)</option>
+                </select>
+            </div>
+            <div id="code-editor"></div>
+        </div>
+    </div>
+
+    <div class="bottom-bar">
+        <!-- 详情折叠层：点击查看详情后弹出 -->
+        <div id="details-section"></div>
+
+        <!-- 按钮操作层：始终在最下面 -->
+        <div class="action-row">
+            <div style="display: flex; align-items: center;">
+                <button id="btn-details" class="btn-details" onclick="toggleDetails()">📊 查看详情</button>
+                <div id="status-brief" style="margin-left: 15px; font-size: 14px;"></div>
+                <span id="save-indicator">✅ 代码已本地保存</span>
+            </div>
+            <button class="btn-submit" onclick="submitCode()">提交代码</button>
+        </div>
+    </div>
+
+    <script>
+        const codeMap = {
+            "1": `{{.TemplateCodeGo}}`,
+            "2": `{{.TemplateCodeCpp}}`
+        };
+
+        let editor = ace.edit("code-editor");
+        editor.setTheme("ace/theme/tomorrow_night");
+        editor.session.setMode("ace/mode/c_cpp");
+        editor.setValue(codeMap["2"]);
+
+        // Ctrl+S 功能
+        $(document).on('keydown', function(e) {
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault();
+                $("#save-indicator").stop(true, true).fadeIn(200).delay(1500).fadeOut(500);
+            }
+        });
+
+        function changeLanguage() {
+            let langType = $("#language-select").val();
+            let mode = langType === "1" ? "ace/mode/golang" : "ace/mode/c_cpp";
+            editor.session.setMode(mode);
+            editor.setValue(codeMap[langType]);
+        }
+
+        function switchLeftTab(tab) {
+            $(".tab-btn").removeClass("active");
+            if (tab === 'desc') {
+                $("#desc-area").show(); $("#case-area").hide();
+                $(".tab-btn:first").addClass("active");
+            } else {
+                $("#desc-area").hide(); $("#case-area").show();
+                $(".tab-btn:last").addClass("active");
+            }
+        }
+
+        function toggleDetails() {
+            const section = $("#details-section");
+            const btn = $("#btn-details");
+            if (section.is(":visible")) {
+                section.slideUp(200);
+                btn.text("📊 查看详情");
+            } else {
+                section.slideDown(200);
+                btn.text("📂 收起详情");
+            }
+        }
+
+        function submitCode() {
+            $("#status-brief").html("<span style='color:#3498db; font-weight:bold;'>🏃 正在判题中...</span>");
+            $("#btn-details").hide();
+            $("#details-section").hide();
+
+            const payload = {
+                id: "{{.ID}}",
+                code: editor.getValue(),
+                language: parseInt($("#language-select").val())
+            };
+
+            $.ajax({
+                method: 'POST',
+                url: '/judge/submit',
+                dataType: 'json',
+                contentType: 'application/json',
+                data: JSON.stringify(payload),
+                success: function(data) {
+                    renderResult(data);
+                },
+                error: function() {
+                    $("#status-brief").html("<span style='color:#e74c3c;'>❌ 网络错误，请检查后端服务</span>");
+                }
+            });
+        }
+
+        function renderResult(data) {
+            const statusNames = {"AC":"通过","WA":"答案错误","CE":"编译失败","TLE":"超时","MLE":"内存超限","RE":"运行错误"};
+            
+            // 更新操作行的简短状态
+            $("#status-brief").html(`
+                <span class="res-badge ${data.status}">${data.status}</span>
+                <span style="font-weight:bold; color:#333;">${statusNames[data.status] || data.status}</span>
+            `);
+
+            // 构建隐藏的详情区域
+            let html = "";
+            if (data.status !== "CE") {
+                html += `<div style="font-size:13px; color:#666; margin-bottom:12px; background:#f8f9fa; padding:8px; border-radius:4px;">
+                    <b>⏱️ 运行时间:</b> ${data.runTime.toFixed(2)} ms &nbsp;&nbsp; 
+                    <b>💾 内存占用:</b> ${data.memory.toFixed(2)} MB
+                </div>`;
+            }
+
+            if (data.stderr) {
+                html += `<div style="margin-bottom:10px;">
+                    <div style="font-size:12px; color:#c0392b; font-weight:bold; margin-bottom:4px;">[ 异常/错误日志 ]</div>
+                    <pre style="background:#fff0f0; padding:10px; border:1px solid #ffdada; border-radius:4px; color:#c0392b; font-size:12px; white-space:pre-wrap; font-family:monospace;">${data.stderr}</pre>
+                </div>`;
+            }
+
+            if (data.stdout) {
+                html += `<div style="margin-bottom:10px;">
+                    <div style="font-size:12px; color:#555; font-weight:bold; margin-bottom:4px;">[ 标准输出反馈 ]</div>
+                    <pre style="background:#fcfcfc; padding:10px; border:1px solid #ddd; border-radius:4px; color:#333; font-size:12px; white-space:pre-wrap; font-family:monospace;">${data.stdout}</pre>
+                </div>`;
+            }
+
+            if (data.cases && data.cases.length > 0) {
+                html += `<div style="margin-top:10px;"><div style="font-size:12px; color:#555; font-weight:bold; margin-bottom:6px;">[ 测试用例详情 ]</div>`;
+                html += `<div style="display:flex; flex-wrap:wrap;">`;
+                data.cases.forEach(c => {
+                    let color = (c.Status === 'AC') ? '#2ecc71' : '#e74c3c';
+                    html += `<span class="case-item" style="border-color:${color}; color:${color}" title="用例 ${c.Id}: ${c.Status}">${c.Id}</span>`;
+                });
+                html += `</div></div>`;
+            }
+
+            $("#details-section").html(html);
+            $("#btn-details").fadeIn(); // 结果出来后，显示“查看详情”按钮
+        }
+    </script>
+</body>
+</html>
