@@ -1,0 +1,11 @@
+# 文件：OnlineOj/judge/config/judge.yaml
+
+# Judge 配置文件
+# 说明：
+# 1. 日志目录、临时目录从这里读取
+# 2. host / port / mode / name / id 由 Makefile 传参覆盖
+
+app:
+  log_path: ./logs # 日志目录
+  temp_path: ./temp # 判题临时目录
+  global_timeout: 1 # 全局判题超时时间
