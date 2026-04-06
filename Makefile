@@ -48,6 +48,11 @@ JUDGE_ADDRS = $(shell \
 	seq $$start $$end | sed 's/.*/$(JUDGE_HOST):&/' | tr '\n' ',' | sed 's/,$$//' \
 )
 
+# =========================
+# 固定参数
+# =========================
+PROD            := prod#生产模式
+
 # 为目标
 .PHONY: all prepare gateway judge run-gateway start-gateway run-judge run-judges run stop stop-gateway stop-judges clean help
 
@@ -98,7 +103,7 @@ start-gateway: gateway
 	@"$(GATEWAY_BIN)" \
 		-config "$(GATEWAY_CONFIG)" \
 		-config-local "$(GATEWAY_LOCAL_CONFIG)" \
-		-m "$(MODE)" \
+		-m "$(PROD)" \
 		-h "$(GATEWAY_HOST)" \
 		-p "$(GATEWAY_PORT)" \
 		-name "gateway" \
@@ -138,7 +143,7 @@ start-judges: judge
 		"$(JUDGE_BIN)" \
 			-config "$(JUDGE_CONFIG)" \
 			-config-local "$(JUDGE_LOCAL_CONFIG)" \
-			-m "$(MODE)" \
+			-m "$(PROD)" \
 			-h "$(JUDGE_HOST)" \
 			-p "$$port" \
 			-name "judge-$$id" \
@@ -151,13 +156,13 @@ start-judges: judge
 # 一键启动
 # =========================
 run: gateway judge
-	@$(MAKE) start-judges JUDGE_COUNT=$(JUDGE_COUNT) JUDGE_BASE_PORT=$(JUDGE_BASE_PORT) JUDGE_HOST=$(JUDGE_HOST) MODE=$(MODE)
+	@$(MAKE) start-judges JUDGE_COUNT=$(JUDGE_COUNT) JUDGE_BASE_PORT=$(JUDGE_BASE_PORT) JUDGE_HOST=$(JUDGE_HOST) MODE=$(PROD)
 	@sleep 1
 	@$(MAKE) start-gateway \
 		GATEWAY_HOST=$(GATEWAY_HOST) \
 		GATEWAY_PORT=$(GATEWAY_PORT) \
 		JUDGE_ADDRS='$(JUDGE_ADDRS)' \
-		MODE=$(MODE) \
+		MODE=$(PROD)
 	@echo "Gateway started at http://$(GATEWAY_HOST):$(GATEWAY_PORT)"
 	@echo "Judge addresses: $(JUDGE_ADDRS)"
 
@@ -214,7 +219,7 @@ help:
 	@echo "  make clean            - 停止服务 + 删除 build/ 目录"
 	@echo ""
 	@echo "==================== 可配置变量 ===================="
-	@echo "  MODE              - 运行模式 (debug/prod)              默认: debug"
+	@echo "  MODE              - 前台运行的模式 (debug/prod)        默认: debug"
 	@echo "  GATEWAY_HOST      - Gateway 监听地址                   默认: 127.0.0.1"
 	@echo "  GATEWAY_PORT      - Gateway HTTP 端口                  默认: 9000"
 	@echo "  JUDGE_HOST        - Judge 监听地址                     默认: 127.0.0.1"
@@ -229,10 +234,13 @@ help:
 	@echo "  make run-judge JUDGE_BASE_PORT=10001"
 	@echo ""
 	@echo "  # 生产启动（后台运行，2个Judge）"
-	@echo "  make run MODE='prod' JUDGE_COUNT=2" 
+	@echo "  make run JUDGE_COUNT=2" 
+	@echo "              自动启动 prod 生产模式"
 	@echo ""
 	@echo "  # 停止所有服务"
 	@echo "  make stop"
 	@echo ""
 	@echo "  # 清理构建产物"
 	@echo "  make clean"
+	@echo "==================== 注意 ====================""
+	@echo "	          后台运行的服务默认是生产模式!"
