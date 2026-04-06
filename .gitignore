@@ -12,10 +12,24 @@ bin-release/
 *.air
 *.ipa
 *.apk
+# 构建产物
 build/
-logs/*
-data/temp
+
+# 日志
+logs/
+*.log
+
+# 运行时文件
 temp/
+*.pid
+
+# 本地敏感配置
+gateway/config/*.local.yaml
+judge/config/*.local.yaml
+
+# 环境变量文件
+.env
+.env.*
 # Project files, i.e. `.project`, `.actionScriptProperties` and `.flexProperties`
 # should NOT be excluded as they contain compiler settings and other important
 # information for Eclipse / Flash Builder.
