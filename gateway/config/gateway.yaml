@@ -1,0 +1,35 @@
+# 文件：OnlineOj/gateway/config/gateway.yaml
+
+# Gateway 配置文件
+# 说明：
+# 1. 数据库、Redis、日志路径放在这里
+# 2. host / port / judge-addrs / view-path 继续由 Makefile 传参覆盖
+# 3. 可以配合 gateway.local.yaml 做本地敏感信息覆盖
+
+app:
+  # 日志目录：由程序初始化 logger 时使用
+  log_path: ./logs
+  # HTML目录：Gin框架初始化的 view 路径
+  view_path: gateway/internal/web/views/*.html
+
+mysql:
+  # MySQL 主机
+  host: 127.0.0.1
+  # MySQL 端口
+  port: 3306
+  # MySQL 用户名
+  user: root
+  # MySQL 密码，放到 gateway.local.yaml 中覆盖
+  password: ""
+  # 数据库名称
+  database: OnlineOj
+  # 字符集
+  charset: utf8mb4
+  # 是否解析时间
+  parse_time: true
+  # 时区
+  loc: Local
+
+rpc:
+  # Judge RPC 请求超时时间（秒）
+  request_timeout_seconds: 5

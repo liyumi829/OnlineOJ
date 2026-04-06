@@ -1,0 +1,7 @@
+# 文件：OnlineOj/gateway/config/gateway.local.yaml
+
+# 本地敏感配置文件
+# 该文件不提交到 Git
+
+mysql:
+  password: "967096489"
