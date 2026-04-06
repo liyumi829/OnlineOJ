@@ -3,7 +3,7 @@ package compile
 import (
 	"context"
 	"fmt"
-	pkg "online-oj/pkg/logger"
+	pkglogger "online-oj/pkg/logger"
 	"testing"
 	"time"
 )
@@ -14,13 +14,13 @@ var path = "../../../temp"
 
 // 初始化日志（必须 否则测试中 zap.L() 会 panic）
 func init() {
-	config := pkg.Config{
+	config := pkglogger.Config{
 		Id:           1001,
 		InstanceName: "test_compile",
 		Mode:         "prod",
 		StoragePath:  "../../../logs",
 	}
-	pkg.InitLogger(config)
+	pkglogger.InitLogger(config)
 }
 
 // 辅助函数：打印编译结果

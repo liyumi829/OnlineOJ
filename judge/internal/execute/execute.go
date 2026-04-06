@@ -6,6 +6,7 @@ import (
 	"net"
 	"online-oj/api/proto/judge"
 	"online-oj/judge/internal/compile"
+	"online-oj/judge/internal/config"
 	"online-oj/judge/internal/run"
 	"os"
 	"os/signal"
@@ -17,24 +18,24 @@ import (
 )
 
 // NewServer 创建CompileAndRun服务实例
-func NewServer(storagePath string) (judge.JudgeServiceServer, error) {
-	if _, err := os.Stat(storagePath); os.IsNotExist(err) {
-		if err := os.MkdirAll(storagePath, 0755); err != nil {
+func NewServer(cfg *config.AppConfig) (judge.JudgeServiceServer, error) {
+	if _, err := os.Stat(cfg.TempPath); os.IsNotExist(err) {
+		if err := os.MkdirAll(cfg.TempPath, 0755); err != nil {
 			return nil, fmt.Errorf("create storage path failed: %w", err)
 		}
 	}
-	return &server{storagePath: storagePath}, nil
+	return &server{storagePath: cfg.TempPath, globalTimeout: time.Duration(cfg.GlobalTimeout) * time.Second}, nil
 }
 
 // StartGRPCServer 启动gRPC服务端
-func StartGRPCServer(addr string, storagePath string) error {
+func StartGRPCServer(addr string, cfg *config.AppConfig) error {
 	lis, err := net.Listen("tcp", addr)
 	if err != nil {
 		return err
 	}
 
 	s := grpc.NewServer()
-	srv, err := NewServer(storagePath)
+	srv, err := NewServer(cfg)
 	if err != nil {
 		return err
 	}
@@ -56,8 +57,9 @@ func StartGRPCServer(addr string, storagePath string) error {
 
 // 实现grpc调用
 type server struct {
-	judge.UnimplementedJudgeServiceServer
-	storagePath string // 存储路径
+	judge.UnimplementedJudgeServiceServer               // 服务端权柄
+	storagePath                           string        // 存储路径
+	globalTimeout                         time.Duration // 一个可执行程序总的超时时间
 }
 
 // ExecuteCode 执行用户代码
@@ -96,7 +98,7 @@ func (s *server) Judge(ctx context.Context, req *judge.JudgeRequest) (*judge.Jud
 		MemoKiBLimit: req.MemoLimit,
 		TestCases:    req.GetTestCases(),
 	}
-	rRes, err := runner.RunSandboxed(ctx)
+	rRes, err := runner.RunSandboxed(ctx, s.globalTimeout)
 	if err != nil {
 		zap.L().Error("An internal error occurred in the program while executing the code.", zap.String("error", err.Error()))
 		return nil, err

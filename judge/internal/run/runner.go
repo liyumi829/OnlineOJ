@@ -7,9 +7,6 @@ import (
 	"online-oj/judge/internal/common"
 	"os"
 	"os/exec"
-	"reflect"
-	"sort"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -35,12 +32,12 @@ type Runner struct {
 
 var priority = map[string]int{"AC": 0, "OLE": 1, "WA": 2, "RE": 3, "MLE": 4, "TLE": 5}
 
-func (r *Runner) RunSandboxed(ctx context.Context) (*RunResult, error) {
+func (r *Runner) RunSandboxed(ctx context.Context, globalTimeout time.Duration) (*RunResult, error) {
 	zap.L().Info(r.Bin)
 	lastIndex := strings.LastIndex(r.Bin, "/") // 截取可执行程序的分隔符
 	dir := r.Bin[:lastIndex]                   // 获取创建的临时目录
-	zap.L().Debug("path", zap.String("dir", dir))
-	defer func() { os.RemoveAll(dir) }() // 删除该临时目录
+	defer func() { os.RemoveAll(dir) }()       // 删除该临时目录
+
 	// 准备运行程序
 	res := &RunResult{
 		Status:      "AC",
@@ -58,11 +55,31 @@ func (r *Runner) RunSandboxed(ctx context.Context) (*RunResult, error) {
 	// }
 	// 限制使用资源 --> 根据实际使用和限制进行比较
 	// 利用fork再次创建子进程，让子进程去执行测试用例
+	startTime := time.Now()
 
 	for idx, testCase := range r.TestCases { // 开始执行每一个测试用例
-		zap.L().Debug("", zap.Int("case", idx+1),
-			zap.String("input", testCase.Input),
-			zap.String("output", testCase.Output))
+		zap.L().Debug("", zap.Int("case", idx+1))
+		// 检查是否已超整体时间
+		elapsed := time.Since(startTime)
+		if elapsed >= globalTimeout {
+			zap.L().Warn("global timeout reached, skipping remaining cases",
+				zap.Duration("elapsed", elapsed),
+				zap.Duration("global_timeout", globalTimeout))
+			// 填充剩余所有 case 为 TLE
+			for i := idx; i < len(r.TestCases); i++ {
+				caseResult := &judge.CaseResult{
+					Passed: false,
+					Time:   r.CpuLimit.Nanoseconds(), // 用单个 case 限制时间（0.5s）
+					Memory: 0,
+					Status: "TLE",
+					Output: "",
+				}
+				res.CaseRusults = append(res.CaseRusults, caseResult)
+			}
+			res.Status = "TLE"
+			break
+		}
+
 		caseResult := &judge.CaseResult{}
 		ctxRun, cancel := context.WithTimeout(ctx, r.CpuLimit) // 限制每一个测试用例的执行时间
 		defer cancel()                                         // 确保无论何种路径都 cancel，防泄漏
@@ -139,7 +156,8 @@ func (r *Runner) RunSandboxed(ctx context.Context) (*RunResult, error) {
 		outStr := stdout.String()    // 拿到标准输出
 		stdErrStr := stderr.String() // 拿到标准错误
 		// outputMatch := strings.TrimSpace(outStr) == strings.TrimSpace(testCase.Output)
-		outputMatch := compareAnswer(outStr, testCase.Output)
+		// outputMatch := compareAnswer(outStr, testCase.Output)
+		outputMatch := compareAuto(outStr, testCase.Output)
 		passed := caseStatus == "AC" && outputMatch
 		if !passed && caseStatus == "AC" && !outputMatch {
 			caseStatus = "WA"
@@ -179,52 +197,4 @@ func (r *Runner) RunSandboxed(ctx context.Context) (*RunResult, error) {
 		zap.String("final_status", res.Status),
 		zap.Int("total_cases", len(r.TestCases)))
 	return res, nil
-}
-
-// CompareAnswer 万能答案比较
-// 支持：
-// [0,1]
-// 0 1
-// 0,1
-// [ 0 , 1 ]
-// [0, 1]
-// 全部能正确比较！
-func compareAnswer(userOut, stdOut string) bool {
-	// 统一预处理：变成纯数字数组
-	userArr := parseToIntArray(userOut)
-	stdArr := parseToIntArray(stdOut)
-
-	// 排序（支持任意顺序返回）
-	sort.Ints(userArr)
-	sort.Ints(stdArr)
-
-	return reflect.DeepEqual(userArr, stdArr)
-}
-
-// parseToIntArray 超级万能：把任何输出变成 []int
-func parseToIntArray(s string) []int {
-	// 1. 去掉所有符号：[ ] { } ( )
-	s = strings.ReplaceAll(s, "[", "")
-	s = strings.ReplaceAll(s, "]", "")
-	s = strings.ReplaceAll(s, "{", "")
-	s = strings.ReplaceAll(s, "}", "")
-	s = strings.ReplaceAll(s, "(", "")
-	s = strings.ReplaceAll(s, ")", "")
-
-	// 2. 把逗号换成空格（统一分隔符）
-	s = strings.ReplaceAll(s, ",", " ")
-
-	// 3. 按空格分割（自动处理多个空格）
-	parts := strings.Fields(s)
-
-	// 4. 转成整数数组
-	res := make([]int, 0, len(parts))
-	for _, p := range parts {
-		num, err := strconv.Atoi(strings.TrimSpace(p))
-		if err == nil {
-			res = append(res, num)
-		}
-	}
-
-	return res
 }

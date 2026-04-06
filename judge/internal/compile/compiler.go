@@ -113,12 +113,12 @@ func (c *Compiler) cppCompile(ctx context.Context, storagePath string) (*Compile
 	ctxCompile, cancle := context.WithTimeout(ctx, 15*time.Second) // 获取一个子Context运行命令行
 	defer cancle()
 	// "g++", "g++", "-o", PathSpliceUtil::Exe(filename).c_str(),PathSpliceUtil::Src(filename).c_str(), "-D", "COMPILE_ONLINE" , "-std=c++17"
-	cmd := exec.CommandContext(ctxCompile, "g++", "-o", bin, src, "-D", "COMPILE_ONLINE", "-std=c++17") // 初始化子进程
-	stderr := &common.OutputBuffer{}                                                                    // 缓冲区，用于重定向
-	cmd.Stderr = stderr                                                                                 // 重定向标准错误
-	err = cmd.Run()                                                                                     // 创建子进程并且运行
-	if err != nil {                                                                                     // 编译发生错误
-		zap.L().Error("compile fail...", zap.String("src", src), zap.String("error", err.Error()))
+	cmd := exec.CommandContext(ctxCompile, "g++", "-o", bin, src, "-std=c++11") // 初始化子进程
+	stderr := &common.OutputBuffer{}                                            // 缓冲区，用于重定向
+	cmd.Stderr = stderr                                                         // 重定向标准错误
+	err = cmd.Run()                                                             // 创建子进程并且运行
+	if err != nil {                                                             // 编译发生错误
+		zap.L().Info("compile fail...", zap.String("src", src), zap.String("error", err.Error()))
 		return &CompileResult{Stderr: stderr.String(), Status: "CE"}, nil // 发生错误
 	}
 	// 编译成功
