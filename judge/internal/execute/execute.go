@@ -14,13 +14,8 @@ import (
 	"time"
 
 	"go.uber.org/zap"
-	"golang.org/x/sync/semaphore"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
-
-var submitLimiter = semaphore.NewWeighted(25) // 限制最多 25 个并发 Judge 请求
 
 // NewServer 创建CompileAndRun服务实例
 func NewServer(cfg *config.AppConfig) (judge.JudgeServiceServer, error) {
@@ -70,10 +65,6 @@ type server struct {
 // ExecuteCode 执行用户代码
 func (s *server) Judge(ctx context.Context, req *judge.JudgeRequest) (*judge.JudgeResponse, error) {
 	zap.L().Debug("receive a execute code request...", zap.Bool("code not empty", req.GetCode() != ""))
-	if err := submitLimiter.Acquire(ctx, 1); err != nil {
-		return nil, status.Error(codes.ResourceExhausted, "too many requests")
-	}
-	defer submitLimiter.Release(1)
 	codeType := getCodeType(req.GetCodeType()) // 获取类型
 	if codeType == compile.UnKnownType {
 		zap.L().Info("user submit a unknown code type", zap.Int32("type code", req.GetCodeType()))

@@ -65,7 +65,7 @@ func main() {
 
 	// 初始化rpc客户端
 	addrs := splitJudgeAddr(*judgeAddrs) // 对地址进行解析
-	judgeClient, err := rpc.NewClinet(context.Background(),
+	judgeClient, err := rpc.NewClinet(ctx,
 		rpc.Config{
 			Addr:           addrs[0], // 先写死使用第一个
 			RequestTimeout: time.Duration(cfg.RPC.RequestTimeoutSeconds) * time.Second,
@@ -78,31 +78,32 @@ func main() {
 		zap.L().Fatal("rpc client init failed", zap.String("error", err.Error()))
 	}
 
-	// 启动worker，通过worke manager进行管理
-	workerCount := runtime.NumCPU() // CPU核心数
+	// 初始化 worker，通过 worke manager 进行管理
+	workerCount := runtime.NumCPU()
 	workers := make([]*worker.JudgeWorker, 0, workerCount)
 	for i := 0; i < workerCount; i++ {
 		w := worker.NewJudgeWorker(
 			"worker-"+strconv.Itoa(i+1),
 			judgeClient, // 所有 Worker 共用同一个 gRPC client
+			nil,         // 让manager 传入
 			repository.NewSubmissionRepository(repo),
 			service.NewSubmissionTaskAggregate(repo),
 			repository.NewProblemRepositoty(repo),
 		)
 		workers = append(workers, w)
 	}
-	// 启动 worker manager
+	// 初始化 worker manager 统一启动和管理 worker
 	workerManager, err := worker.NewJudgeWorkerManager(
 		repository.NewJudgeTaskRepository(repo),
 		workers,
-		workerCount,
-		10,
+		20,
 		1*time.Second,
 	)
 	if err != nil {
 		zap.L().Fatal("[gateway] init worker manager failed.", zap.String("error", err.Error()))
 		return
 	}
+
 	go func() { // 正式启动 manager
 		zap.L().Info("[gateway] worker manager started")
 		workerManager.Run(ctx)

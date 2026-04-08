@@ -7,13 +7,11 @@ import (
 	"online-oj/judge/internal/common"
 	"os"
 	"os/exec"
-	"runtime"
 	"strings"
 	"syscall"
 	"time"
 
 	"go.uber.org/zap"
-	"golang.org/x/sync/semaphore"
 )
 
 type RunResult struct { // 运行结果
@@ -33,9 +31,6 @@ type Runner struct {
 }
 
 var priority = map[string]int{"AC": 0, "OLE": 1, "WA": 2, "RE": 3, "MLE": 4, "TLE": 5}
-
-// 全局信号量：限制同时运行的 sandbox 进程数
-var execSem = semaphore.NewWeighted(int64(runtime.NumCPU() * 2)) // 动态决定上限
 
 func (r *Runner) RunSandboxed(ctx context.Context, globalTimeout time.Duration) (*RunResult, error) {
 	zap.L().Info(r.Bin)
@@ -60,12 +55,6 @@ func (r *Runner) RunSandboxed(ctx context.Context, globalTimeout time.Duration) 
 	// }
 	// 限制使用资源 --> 根据实际使用和限制进行比较
 	// 利用fork再次创建子进程，让子进程去执行测试用例
-
-	// 获取许可（阻塞直到有空槽）
-	if err := execSem.Acquire(ctx, 1); err != nil {
-		return nil, err // ctx 可能被 cancel
-	}
-	defer execSem.Release(1)
 
 	startTime := time.Now()
 
