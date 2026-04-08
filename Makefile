@@ -191,6 +191,8 @@ stop-judges:
 	fi
 
 stop: stop-gateway stop-judges
+	@rm -fr build
+	@rm -fr temp
 
 clean: stop
 	@rm -rf "$(BUILD_DIR)"

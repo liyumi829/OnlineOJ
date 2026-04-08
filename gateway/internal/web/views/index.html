@@ -1,54 +1,45 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>这是我的个⼈OJ系统</title>
+    <title>我的个人OJ系统</title>
     <style>
-        /* 起⼿式, 100%保证我们的样式设置可以不受默认影响 */
         * {
-            /* 消除⽹⻚的默认外边距 */
-            margin: 0px;
-            /* 消除⽹⻚的默认内边距 */
-            padding: 0px;
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
 
         html,
         body {
             width: 100%;
             height: 100%;
+            font-family: "Microsoft YaHei", "微软雅黑", sans-serif;
         }
 
         .container .navbar {
             width: 100%;
             height: 50px;
-            background-color: black;
-            /* 给⽗级标签设置overflow，取消后续float带来的影响 */
+            background-color: #1f2937;
             overflow: hidden;
         }
 
         .container .navbar a {
-            /* 设置a标签是⾏内块元素，允许你设置宽度 */
             display: inline-block;
-            /* 设置a标签的宽度,a标签默认行内元素，无法设置宽度 */
-            width: 80px;
-            /* 设置字体颜色 */
+            width: 100px;
             color: white;
-            /* 设置字体的⼤⼩ */
-            font-size: large;
-            /* 设置文字的⾼度和导航栏⼀样的⾼度 */
+            font-size: 16px;
             line-height: 50px;
-            /* 去掉a标签的下划线 */
             text-decoration: none;
-            /* 设置a标签中的文字居中 */
             text-align: center;
+            transition: 0.3s;
         }
 
-        /* 设置⿏标事件 */
         .container .navbar a:hover {
-            background-color: green;
+            background-color: #10b981;
         }
 
         .container .navbar .login {
@@ -56,47 +47,60 @@
         }
 
         .container .content {
-            /* 设置标签的宽度 */
             width: 800px;
-            /* ⽤来调试 */
-            /* background-color: #ccc; */
-            /* 整体居中 */
-            margin: 0px auto;
-            /* 设置⽂字居中 */
+            margin: 0 auto;
             text-align: center;
-            /* 设置上外边距 */
-            margin-top: 200px;
+            margin-top: 180px;
         }
 
-        .container .content .font_ {
-            /* 设置标签为块级元素，独占⼀⾏，可以设置⾼度宽度等属性 */
-            display: block;
-            /* 设置每个⽂字的上外边距 */
+        .container .content h1 {
+            font-size: 32px;
+            font-weight: normal;
+            color: #222;
+        }
+
+        .container .content p {
+            font-size: 18px;
             margin-top: 20px;
-            /* 去掉a标签的下划线 */
+            color: #444;
+        }
+
+        .container .content a {
+            display: inline-block;
+            margin-top: 30px;
+            font-size: 18px;
+            color: #10b981;
             text-decoration: none;
-            /* 设置字体⼤⼩
-font-size: larger; */
+            border: 2px solid #10b981;
+            padding: 10px 25px;
+            border-radius: 6px;
+            transition: 0.3s;
+        }
+
+        .container .content a:hover {
+            background-color: #10b981;
+            color: white;
         }
     </style>
 </head>
 
 <body>
     <div class="container">
-        <!-- 导航栏， 功能不实现-->
+        <!-- 导航栏 -->
         <div class="navbar">
             <a href="#">首页</a>
-            <a href="/problems">题库</a>
+            <a href="/problem/list?page=1">题库</a>
             <a href="#">竞赛</a>
             <a href="#">讨论</a>
             <a href="#">求职</a>
             <a class="login" href="#">登录</a>
         </div>
-        <!-- ⽹⻚的内容 -->
+
+        <!-- 网页内容 -->
         <div class="content">
-            <h1 class="font_">欢迎来到我的OnlineJudge平台</h1>
-            <p class="font_">这个我个人独立开发的一个在线OJ平台</p>
-            <a class="font_" href="/problems">点击我开始编程啦!</a>
+            <h1>欢迎来到我的 OnlineJudge 平台</h1>
+            <p>这是我个人独立开发的在线OJ平台</p>
+            <a href="/problem/list?page=1">点击开始编程</a>
         </div>
     </div>
 </body>

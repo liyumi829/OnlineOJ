@@ -3,16 +3,22 @@ package main
 import (
 	"context"
 	"flag"
-	"io"
 	"net"
+	"net/http"
+	"online-oj/gateway/cmd/router"
 	"online-oj/gateway/internal/config"
 	"online-oj/gateway/internal/control"
 	"online-oj/gateway/internal/repository"
 	"online-oj/gateway/internal/rpc"
 	"online-oj/gateway/internal/service"
+	"online-oj/gateway/internal/service/worker"
 	pkglogger "online-oj/pkg/logger"
 	"os"
+	"os/signal"
+	"runtime"
+	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -34,6 +40,15 @@ var (
 )
 
 func main() {
+	// 根上下文：
+	// 整个进程的生命周期由该 ctx 控制。
+	// 当收到退出信号时，调用 cancel()，后台 WorkerManager 就会感知并停止循环。
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// 监听系统退出信号
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	// 解析参数和配置
 	flag.Parse()                                           // 命令行参数解析
 	cfg, err := config.Load(*configPath, *configLocalPath) // 读取配置文件（MySQL / Redis / 日志路径）
@@ -45,50 +60,107 @@ func main() {
 	// 设置全局日志模式
 	pkglogger.InitLogger(*mode, cfg.App.LogPath, *instanceName, *id) // 初始日志
 
-	// 创建服务
-	// 1. Gin
-	if *mode == "prod" {
-		gin.DisableConsoleColor()
-		gin.DefaultWriter = io.Discard
-		gin.SetMode(gin.ReleaseMode) // 设置gin框架日志模式
-	}
-	r := gin.Default()               // 创建一个默认的Gin框架引擎实例
-	r.LoadHTMLGlob(cfg.App.ViewPath) // 配置View
-	// 2. rpc客户端
+	// Gorm服务 连接数据库及初始化
+	repo := repository.NewRepository(repository.InitDB(cfg.MySQLDSN(), *mode)) // 初始化仓储层
+
+	// 初始化rpc客户端
 	addrs := splitJudgeAddr(*judgeAddrs) // 对地址进行解析
-	conn, err := rpc.NewClinet(context.Background(),
+	judgeClient, err := rpc.NewClinet(context.Background(),
 		rpc.Config{
 			Addr:           addrs[0], // 先写死使用第一个
 			RequestTimeout: time.Duration(cfg.RPC.RequestTimeoutSeconds) * time.Second,
 		},
 	) // 创建连接 conn Client
+	defer func() {
+		_ = judgeClient.Close()
+	}()
 	if err != nil {
 		zap.L().Fatal("rpc client init failed", zap.String("error", err.Error()))
 	}
-	// 3. Gorm服务
-	repo := repository.NewRepository(repository.InitDB(cfg.MySQLDSN(), *mode)) // 初始化仓储层
-	// 4. 初始化业务服务
-	problemService := service.NewProblemService(repo)
-	judgeService := service.NewJudgeService(conn, repo)
-	// 5. 初始化控制器
-	problemCtl := control.NewProblemController(problemService)
-	judgeCtl := control.NewJudgeController(judgeService)
 
-	// 注册路由
-	r.GET("/", problemCtl.IndexPage)
-	r.GET("/problems", problemCtl.ListPage)
-	r.GET("/problem/:id", problemCtl.ProblemPage)
-	r.POST("/judge/submit", judgeCtl.SubmitCode)
-
-	addr := net.JoinHostPort(*host, *port)
-	zap.L().Info("gateway server starting",
-		zap.String("addr", addr),
-		zap.String("judgeAddr", addrs[0]),
-	)
-
-	if err := r.Run(addr); err != nil {
-		zap.L().Fatal("gateway server start failed", zap.String("error", err.Error()))
+	// 启动worker，通过worke manager进行管理
+	workerCount := runtime.NumCPU() // CPU核心数
+	workers := make([]*worker.JudgeWorker, 0, workerCount)
+	for i := 0; i < workerCount; i++ {
+		w := worker.NewJudgeWorker(
+			"worker-"+strconv.Itoa(i+1),
+			judgeClient, // 所有 Worker 共用同一个 gRPC client
+			repository.NewSubmissionRepository(repo),
+			service.NewSubmissionTaskAggregate(repo),
+			repository.NewProblemRepositoty(repo),
+		)
+		workers = append(workers, w)
 	}
+	// 启动 worker manager
+	workerManager, err := worker.NewJudgeWorkerManager(
+		repository.NewJudgeTaskRepository(repo),
+		workers,
+		workerCount,
+		10,
+		1*time.Second,
+	)
+	if err != nil {
+		zap.L().Fatal("[gateway] init worker manager failed.", zap.String("error", err.Error()))
+		return
+	}
+	go func() { // 正式启动 manager
+		zap.L().Info("[gateway] worker manager started")
+		workerManager.Run(ctx)
+		zap.L().Info("[gateway] worker manager stopped")
+	}()
+
+	// 初始化业务服务及其对应的控制器
+	problemService := service.NewProblemService(repo)
+	submitService := service.NewSubmitService(repo)
+	submissionQueryService := service.NewSubmissionQueryService(repo)
+	problemCtl := control.NewProblemController(problemService)
+	judgeCtl := control.NewJudgeController(submitService, submissionQueryService)
+
+	// Gin 框架设置
+	if *mode == "prod" {
+		gin.DisableConsoleColor()
+		// gin.DefaultWriter = io.Discard
+		gin.SetMode(gin.ReleaseMode) // 设置gin框架日志模式
+	}
+	r := gin.Default()               // 创建一个默认的Gin框架引擎实例
+	r.LoadHTMLGlob(cfg.App.ViewPath) // 配置View
+	// 注册路由
+	r.GET("/", problemCtl.IndexPage) // 根目录
+	api := r.Group("/api/v1")        // 判题
+	router.RegisterJudgeRoutes(api, judgeCtl)
+	problem := r.Group("/problem") // 题目显示
+	router.RegisterProblemRoutes(problem, problemCtl)
+	// 设置服务器
+	server := &http.Server{
+		Addr:    net.JoinHostPort(*host, *port),
+		Handler: r, // Gin 实现了 http.Handler
+	}
+	go func() {
+		zap.L().Info("gateway server starting",
+			zap.String("addr", server.Addr),
+			zap.String("judgeAddr", addrs[0]))
+
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			zap.L().Fatal("gateway server start failed", zap.String("error", err.Error()))
+		}
+	}()
+	// 退出信号
+	<-quit
+	zap.L().Info("[gateway] shutdown signal received")
+
+	// 发出取消信号，通知后台 WorkerManager 停止轮询与调度
+	cancel()
+
+	// 优雅关闭 HTTP 服务（最多等待 10 秒）
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer shutdownCancel()
+
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		zap.L().Error("[gateway] http server shutdown failed",
+			zap.String("error", err.Error()))
+	}
+
+	zap.L().Info("[gateway] exited")
 }
 
 // 从环境变量读取默认值

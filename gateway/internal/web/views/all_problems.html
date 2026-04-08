@@ -49,7 +49,7 @@
     <div class="container">
         <div class="navbar">
             <a href="/">首页</a>
-            <a href="/problems">题库</a>
+            <a href="/problem/list?page=1">题库</a>
             <a href="#">竞赛</a>
             <a href="#">讨论</a>
             <a href="#">求职</a>
@@ -77,16 +77,16 @@
                 <span>共 {{.Total}} 个题目，共 {{.TotalPage}} 页</span>
 
                 <!-- 一键跳回首页 → 新增！-->
-                <a href="/problems?page=1" class="btn">首页</a>
+                <a href="/problem/list?page=1" class="btn">首页</a>
 
                 {{if gt .CurrentPage 1}}
-                <a href="/problems?page={{.PrevPage}}" class="btn">上一页</a>
+                <a href="/problem/list?page={{.PrevPage}}" class="btn">上一页</a>
                 {{end}}
 
                 <span class="current">第 {{.CurrentPage}} 页</span>
 
                 {{if lt .CurrentPage .TotalPage}}
-                <a href="/problems?page={{.NextPage}}" class="btn">下一页</a>
+                <a href="/problem/list?page={{.NextPage}}" class="btn">下一页</a>
                 {{end}}
             </div>
         </div>

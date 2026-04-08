@@ -18,21 +18,21 @@ func NewProblemController(s *service.ProblemService) *ProblemController {
 	return &ProblemController{problemService: s}
 }
 
-// 首页：访问 / 自动渲染 index.html
-func (con *ProblemController) IndexPage(c *gin.Context) {
-	con.Render(c, "index.html", nil)
+// IndexPage 首页页面
+func (pc *ProblemController) IndexPage(c *gin.Context) {
+	pc.Render(c, "index.html", nil)
 }
 
-// --------------------- 页面路由 ---------------------
-func (con *ProblemController) ListPage(c *gin.Context) {
+// ListPage 题目列表路由
+func (pc *ProblemController) ListPage(c *gin.Context) {
 	// 获取并处理参数
 	pageStr := c.DefaultQuery("page", "1")
 	page, _ := strconv.Atoi(pageStr)
 	pageSize := 10 // 每页10条
 
 	// 获取总数，并计算页数防越界
-	total := int(con.problemService.GetAllProblemCount()) // 获取题目总数
-	totalPage := (total + pageSize - 1) / pageSize        // 向上取整算总页数
+	total := int(pc.problemService.GetAllProblemCount(c.Request.Context())) // 获取题目总数
+	totalPage := (total + pageSize - 1) / pageSize                          // 向上取整算总页数
 	// 防止恶意页码
 	if page < 1 {
 		page = 1
@@ -43,10 +43,10 @@ func (con *ProblemController) ListPage(c *gin.Context) {
 	}
 
 	// 3. 一行代码获取数据（Service 会自动处理命中缓存还是走 DB）
-	list, err := con.problemService.GetProblemListByPage(page, pageSize)
+	list, err := pc.problemService.GetProblemListByPage(c.Request.Context(), page, pageSize)
 	if err != nil {
 		zap.L().Error("Get problem list fail", zap.String("error", err.Error()))
-		con.Fail(c, "Failed to get question list.")
+		pc.Fail(c, http.StatusInternalServerError, err.Error(), "Failed to get question list.")
 		return
 	}
 
@@ -71,20 +71,21 @@ func (con *ProblemController) ListPage(c *gin.Context) {
 	})
 }
 
-func (con *ProblemController) ProblemPage(c *gin.Context) {
+// ProblemPage 题目详情页面
+func (pc *ProblemController) ProblemPage(c *gin.Context) {
 	// 题目详情页
 	idStr := c.Param("id")
 	uintId, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {
-		con.Fail(c, "Illegal question ID parameter")
+		pc.Fail(c, http.StatusBadRequest, err.Error(), "Illegal question ID parameter")
 		return
 	}
-	vo, err := con.problemService.GetProblemDetailVO(uintId)
 
+	vo, err := pc.problemService.GetProblemDetailVO(c.Request.Context(), uintId)
 	if err != nil {
 		zap.L().Error("Get a problem Detail fail", zap.String("error", err.Error()))
-		con.Fail(c, "Get a problem Detail fail")
+		pc.Fail(c, http.StatusInternalServerError, err.Error(), "Get a problem Detail fail")
 		return
 	}
-	con.Render(c, "one_problem.html", vo)
+	pc.Render(c, "one_problem.html", vo)
 }

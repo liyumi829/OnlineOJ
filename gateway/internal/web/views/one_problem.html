@@ -1,240 +1,442 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>{{.ID}}. {{.TitleNumber}}</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.2.6/ace.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.2.6/ext-language_tools.js"></script>
-    <script src="http://code.jquery.com/jquery-2.1.1.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.ID}} - Go/Gin 在线判题系统</title>
+    <script src="https://cdn.bootcdn.net/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdn.bootcdn.net/ajax/libs/ace/1.4.14/ace.js"></script>
     
     <style>
-        :root { --primary-color: #26bb9c; --black-bg: #1e1e1e; }
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { margin: 0; display: flex; flex-direction: column; height: 100vh; font-family: -apple-system, system-ui, "Segoe UI", Roboto; overflow: hidden; }
-
-        .navbar { height: 50px; flex-shrink: 0; background: #000; display: flex; align-items: center; padding: 0 20px; color: white; }
-        .navbar a { color: white; text-decoration: none; margin-right: 20px; font-size: 14px; }
-
-        .main-container { flex: 1; display: flex; min-height: 0; border-bottom: 1px solid #ddd; }
-        .left-panel { width: 45%; border-right: 1px solid #ddd; display: flex; flex-direction: column; }
-        .tab-header { background: #f5f5f5; display: flex; border-bottom: 1px solid #ddd; }
-        .tab-btn { padding: 10px 20px; cursor: pointer; border: none; background: none; }
-        .tab-btn.active { background: white; border-top: 2px solid var(--primary-color); font-weight: bold; }
-        .content-area { flex: 1; padding: 20px; overflow-y: auto; line-height: 1.6; }
-
-        .right-panel { width: 55%; display: flex; flex-direction: column; background: var(--black-bg); }
-        .editor-toolbar { height: 40px; background: #333; display: flex; align-items: center; padding: 0 10px; gap: 10px; }
-        #code-editor { flex: 1; font-size: 16px; }
-
-        /* 底部栏：双层结构 */
-        .bottom-bar { 
-            background: #fff; 
-            border-top: 1px solid #ddd; 
-            padding: 10px 20px;
-            z-index: 100;
+        /* 基础重置 */
+        * {
+            box-sizing: border-box;
+        }
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            overflow: hidden;
+            font-family: system-ui, sans-serif;
+            background: #f3f4f6;
+            color: #374151;
+        }
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #d1d5db;
+            border-radius: 4px;
+        }
+        
+        .app-container {
             display: flex;
             flex-direction: column;
+            height: 100vh;
         }
-
-        #details-section {
-            display: none; 
-            padding: 10px 0;
-            max-height: 250px;
-            overflow-y: auto;
-            border-bottom: 1px solid #eee;
-            margin-bottom: 10px;
+        .header {
+            background: #111827;
+            color: #fff;
+            padding: 12px 24px;
+            font-weight: bold;
+            font-size: 18px;
         }
-
-        .action-row { display: flex; justify-content: space-between; align-items: center; }
-
-        /* 按钮样式 */
-        .btn-submit { background: var(--primary-color); color: white; border: none; padding: 8px 25px; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: bold;}
-        .btn-details { background: #34495e; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; font-size: 14px; display: none; }
-        .btn-submit:hover, .btn-details:hover { opacity: 0.9; }
-
-        /* 状态标签颜色修复 */
-        .res-badge { padding: 3px 10px; border-radius: 4px; color: white; font-weight: bold; margin-right: 10px; font-size: 13px; }
-        .AC { background: #2ecc71; }   /* 绿色 */
-        .WA { background: #e74c3c; }   /* 红色 */
-        .TLE, .MLE { background: #f39c12; } /* 橙色 */
-        .CE { background: #8e44ad; }   /* 紫色 */
-        .RE { background: #e67e22; }   /* 深橙色 - 修复RE看不清的问题 */
+        .main-content {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            padding: 12px;
+            gap: 12px;
+        }
         
-        .case-item { display: inline-block; width: 28px; height: 28px; line-height: 28px; text-align: center; margin: 3px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; font-weight: bold; }
-        #save-indicator { color: #2ecc71; font-weight: bold; font-size: 13px; display: none; margin-left:15px;}
+        /* 左侧与 Tab */
+        .left-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            max-width: 50%;
+            overflow: hidden;
+        }
+        .tab-bar {
+            display: flex;
+            border-bottom: 1px solid #e5e7eb;
+            background: #f9fafb;
+            padding: 0 12px;
+        }
+        .tab-btn {
+            padding: 12px 16px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            color: #6b7280;
+            border-bottom: 2px solid transparent;
+        }
+        .tab-btn.active {
+            color: #3b82f6;
+            border-bottom-color: #3b82f6;
+        }
+        .content-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+        
+        /* 右侧代码区 */
+        .right-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .editor-toolbar {
+            padding: 10px 16px;
+            background: #f8fafc;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: flex-end;
+        }
+        .editor-toolbar select {
+            padding: 6px 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        #code-editor {
+            flex: 1;
+            width: 100%;
+            font-size: 14px;
+        }
+
+        /* 解决重叠的底部栏 */
+        .bottom-bar {
+            background: #fff;
+            border-top: 1px solid #e5e7eb;
+            box-shadow: 0 -4px 6px -1px rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+            z-index: 20;
+        }
+        #details-section {
+            display: none;
+            padding: 20px 24px;
+            max-height: 40vh;
+            overflow-y: auto;
+            border-bottom: 1px solid #e5e7eb;
+            background: #fdfdfd;
+        }
+        .action-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 24px;
+        }
+        
+        /* 按钮与状态 */
+        .btn-submit {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 10px 28px;
+            border-radius: 6px;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .btn-details {
+            display: none;
+            background: #fff;
+            border: 1px solid #d1d5db;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        #save-indicator {
+            display: none;
+            font-size: 13px;
+            color: #10b981;
+            margin-left: 15px;
+            font-weight: bold;
+        }
+        .case-item {
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            width: 32px;
+            height: 32px;
+            margin: 0 6px 6px 0;
+            border: 2px solid;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
-    <div class="navbar">
-        <a href="/problems">返回题库</a>
-        <span style="flex:1"></span>
-        <span>用户：OJ大佬</span>
-    </div>
 
-    <div class="main-container">
+<div class="app-container">
+    <div class="header">在线代码评测</div>
+
+    <div class="main-content">
+        <!-- 左侧：题目描述与测试用例 (恢复原生字段与Tab逻辑) -->
         <div class="left-panel">
-            <div class="tab-header">
-                <button class="tab-btn active" onclick="switchLeftTab('desc')">题目描述</button>
-                <button class="tab-btn" onclick="switchLeftTab('case')">查看用例</button>
+            <div class="tab-bar">
+                <button class="tab-btn active" onclick="switchTab('desc')">题目描述</button>
+                <button class="tab-btn" onclick="switchTab('case')">测试用例</button>
             </div>
+            
             <div id="desc-area" class="content-area">
-                <h3>{{.ID}}. {{.TitleNumber}} <span style="font-size: 14px; color: #888;">[{{.Star}}]</span></h3>
-                <pre style="white-space: pre-wrap; margin-top: 15px;">{{.Desc}}</pre>
+                <h3 style="margin-top:0;">{{.ID}}. {{.TitleNumber}} [{{.Star}}]</h3>
+                <pre style="white-space: pre-wrap; font-family: inherit; line-height: 1.6;">{{.Desc}}</pre>
             </div>
+            
             <div id="case-area" class="content-area" style="display:none;">
-                <h3 style="margin-bottom: 15px;">预设测试用例</h3>
+                <h3 style="margin-top:0;">预设测试用例</h3>
                 {{ range .TestCases }}
-                <pre style="background:#f9f9f9; padding:12px; border-radius:6px; border:1px dashed #ccc; margin-bottom:10px;"><b>输入：</b>{{ .Input }}<b><br>输出：</b>{{ .Output }}</pre>
+                <pre style="background:#f9f9f9;padding:12px;border-radius:6px;margin-top:10px;"><b>输入：</b>{{ .Input }}
+<b>输出：</b>{{ .Output }}</pre>
                 {{ end }}
             </div>
         </div>
 
+        <!-- 右侧：代码编辑器 (恢复原生的 go / cpp 映射) -->
         <div class="right-panel">
             <div class="editor-toolbar">
-                <select id="language-select" onchange="changeLanguage()" style="padding: 2px 5px;">
-                    <option value="2">C++ (G++ 11)</option>
-                    <option value="1">Go (1.25.5)</option>
+                <select id="language-select">
+                    <option value="cpp">C++</option>
+                    <option value="go">Go</option>
                 </select>
             </div>
             <div id="code-editor"></div>
         </div>
     </div>
 
+    <!-- 弹性底部栏 -->
     <div class="bottom-bar">
-        <!-- 详情折叠层：点击查看详情后弹出 -->
         <div id="details-section"></div>
-
-        <!-- 按钮操作层：始终在最下面 -->
         <div class="action-row">
             <div style="display: flex; align-items: center;">
-                <button id="btn-details" class="btn-details" onclick="toggleDetails()">📊 查看详情</button>
-                <div id="status-brief" style="margin-left: 15px; font-size: 14px;"></div>
+                <button class="btn-details" onclick="toggleDetails()">查看详情</button>
+                <div id="status-brief" style="margin-left:15px;"></div>
                 <span id="save-indicator">✅ 代码已本地保存</span>
             </div>
             <button class="btn-submit" onclick="submitCode()">提交代码</button>
         </div>
     </div>
+</div>
 
-    <script>
-        const codeMap = {
-            "1": `{{.TemplateCodeGo}}`,
-            "2": `{{.TemplateCodeCpp}}`
+<script>
+    const codeMap = {
+        "go": `{{.TemplateCodeGo}}`,
+        "cpp": `{{.TemplateCodeCpp}}`
+    }; 
+    const editor = ace.edit("code-editor");
+    editor.setTheme("ace/theme/tomorrow_night");
+    editor.session.setMode("ace/mode/c_cpp");
+    editor.setOptions({
+        enableBasicAutocompletion: true,
+        enableLiveAutocompletion: true
+    });
+    editor.setValue(codeMap["cpp"]);
+    editor.clearSelection();
+    let pollTimer = null;
+    const problemID = "{{.ID}}";
+    // Ctrl+S 功能
+    $(document).on('keydown', function(e) {
+        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+            e.preventDefault();
+            $("#save-indicator").stop(true, true).fadeIn(200).delay(1500).fadeOut(500);
+        }
+    });
+    // 语言选择逻辑
+    document.getElementById("language-select").addEventListener("change", function() {
+        const lang = this.value;
+        const modeMap = {
+            "cpp": "ace/mode/c_cpp",
+            "go": "ace/mode/golang",
         };
+        editor.session.setMode(modeMap[lang] || "ace/mode/text");
+        editor.setValue(codeMap[lang] || "");
+        editor.clearSelection();
+    });
+    // 恢复 Tab 切换逻辑
+    function switchTab(type) {
+        const btns = document.querySelectorAll(".tab-btn");
+        if(type === 'desc') {
+            document.getElementById("desc-area").style.display = "block";
+            document.getElementById("case-area").style.display = "none";
+            btns[0].classList.add("active");
+            btns[1].classList.remove("active");
+        } else {
+            document.getElementById("desc-area").style.display = "none";
+            document.getElementById("case-area").style.display = "block";
+            btns[0].classList.remove("active");
+            btns[1].classList.add("active");
+        }
+    }
+    
+    function toggleDetails() {
+        $("#details-section").slideToggle(200, function() {
+            let visible = $(this).is(":visible");
+            $(".btn-details").text(visible ? "收起详情" : "查看详情");
+        });
+    }
 
-        let editor = ace.edit("code-editor");
-        editor.setTheme("ace/theme/tomorrow_night");
-        editor.session.setMode("ace/mode/c_cpp");
-        editor.setValue(codeMap["2"]);
-
-        // Ctrl+S 功能
-        $(document).on('keydown', function(e) {
-            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-                e.preventDefault();
-                $("#save-indicator").stop(true, true).fadeIn(200).delay(1500).fadeOut(500);
+    // -----------------------------------------------------------------
+    // 2. 结合根据最佳轮询逻辑
+    // -----------------------------------------------------------------
+    function submitCode() {
+        $("#status-brief").html("<span style='color:#3b82f6;font-weight:bold'>🚀 提交中...</span>");
+        $(".btn-details").hide().text("查看详情"); // 重置按钮文字
+        $("#details-section").slideUp();
+        if(pollTimer) clearTimeout(pollTimer);
+        const payload = {
+            problem_id: parseInt(problemID),
+            code: editor.getValue(),
+            language: $("#language-select").val()
+        };
+        $.ajax({
+            method: 'POST',
+            url: '/api/v1/judge/submit',
+            dataType: 'json',
+            contentType: 'application/json',
+            data: JSON.stringify(payload),
+            success: function(res) {
+                if (res && res.submission_id) {
+                    startPolling(res.submission_id);
+                } else {
+                    $("#status-brief").html("<span style='color:#ef4444;'>❌ 提交失败：无 submission_id</span>");
+                }
+            },
+            error: function(err) {
+                let errMsg = "网络错误";
+                if (err.responseJSON?.message) {
+                    errMsg = err.responseJSON.message;
+                } else if (err.responseText) {
+                    errMsg = err.responseText;
+                }
+                $("#status-brief").html(`<span style='color:#ef4444;'>❌ ${errMsg}</span>`);
             }
         });
+    }
 
-        function changeLanguage() {
-            let langType = $("#language-select").val();
-            let mode = langType === "1" ? "ace/mode/golang" : "ace/mode/c_cpp";
-            editor.session.setMode(mode);
-            editor.setValue(codeMap[langType]);
-        }
-
-        function switchLeftTab(tab) {
-            $(".tab-btn").removeClass("active");
-            if (tab === 'desc') {
-                $("#desc-area").show(); $("#case-area").hide();
-                $(".tab-btn:first").addClass("active");
-            } else {
-                $("#desc-area").hide(); $("#case-area").show();
-                $(".tab-btn:last").addClass("active");
-            }
-        }
-
-        function toggleDetails() {
-            const section = $("#details-section");
-            const btn = $("#btn-details");
-            if (section.is(":visible")) {
-                section.slideUp(200);
-                btn.text("📊 查看详情");
-            } else {
-                section.slideDown(200);
-                btn.text("📂 收起详情");
-            }
-        }
-
-        function submitCode() {
-            $("#status-brief").html("<span style='color:#3498db; font-weight:bold;'>🏃 正在判题中...</span>");
-            $("#btn-details").hide();
-            $("#details-section").hide();
-
-            const payload = {
-                id: "{{.ID}}",
-                code: editor.getValue(),
-                language: parseInt($("#language-select").val())
-            };
-
-            $.ajax({
-                method: 'POST',
-                url: '/judge/submit',
-                dataType: 'json',
-                contentType: 'application/json',
-                data: JSON.stringify(payload),
-                success: function(data) {
-                    renderResult(data);
-                },
-                error: function() {
-                    $("#status-brief").html("<span style='color:#e74c3c;'>❌ 网络错误，请检查后端服务</span>");
+    function startPolling(submissionId) {
+        $.ajax({
+            method: 'GET',
+            url: `/api/v1/submissions/${submissionId}`,
+            dataType: 'json',
+            success: function(res) {
+                if (res.done) {
+                    if (res.phase === "FAILED") {
+                        $("#status-brief").html("<span style='color:#ef4444;'>💥 内部错误: " + (res.error_msg || "") + "</span>");
+                    } else if (res.status) {
+                        renderResult(res);
+                    } else {
+                        $("#status-brief").html("<span style='color:#ef4444;'>❌ 获取结果异常</span>");
+                    }
+                    return; 
                 }
-            });
-        }
+                if (res.polling) {
+                    let text = res.phase === "JUDGING" ? "⚙️ 正在判题..." : "⏳ 排队中...";
+                    $("#status-brief").html(`<span style='color:#f59e0b;font-weight:bold'>${text}</span>`);
+                    
+                    let nextWait = res.next_poll_after_ms > 0 ? res.next_poll_after_ms : 300;
+                    pollTimer = setTimeout(function() {
+                        startPolling(submissionId);
+                    }, nextWait);
+                } else {
+                    $("#status-brief").html("<span style='color:#ef4444;'>🛑 判题终止</span>");
+                }
+            },
+            error: function(err) {
+                let errMsg = "请求失败";
+                if (err.responseJSON?.message) {
+                    errMsg = err.responseJSON.message;
+                } else if (err.responseText) {
+                    errMsg = err.responseText;
+                }
+                $("#status-brief").html(`<span style='color:#ef4444;'>❌ ${errMsg}</span>`);
+            }
+        });
+    }
 
-        function renderResult(data) {
-            const statusNames = {"AC":"通过","WA":"答案错误","CE":"编译失败","TLE":"超时","MLE":"内存超限","RE":"运行错误"};
+    function renderResult(data) {
+        const statusNames = {
+            "ACCEPTED":"通过",
+            "WRONG_ANSWER":"答案错误",
+            "COMPILE_ERROR":"编译失败",
+            "TIME_LIMIT_EXCEEDED":"超时",
+            "MEMORY_LIMIT_EXCEEDED":"内存超限",
+            "RUNTIME_ERROR":"运行错误",
+        };
+        const statusMap = {
+            "ACCEPTED":"AC",
+            "WRONG_ANSWER":"WA",
+            "COMPILE_ERROR":"CE",
+            "TIME_LIMIT_EXCEEDED":"TLE",
+            "MEMORY_LIMIT_EXCEEDED":"MLE",
+            "RUNTIME_ERROR":"RE",
+        };
+        
+        $("#status-brief").html(`
+            <span class="res-badge ${data.status}">${data.status}</span>
+            <span style="font-weight:bold; color:#333;">${statusNames[data.status] || data.status}</span>
+        `);
+
+        let html = "";
+        
+        if (data.status !== "COMPILE_ERROR") {
+            let rt = data.runtime_ms ? data.runtime_ms.toFixed(2) : "0.00";
+            let mem = data.memory_kb ? data.memory_kb.toFixed(2) : "0.00";
             
-            // 更新操作行的简短状态
-            $("#status-brief").html(`
-                <span class="res-badge ${data.status}">${data.status}</span>
-                <span style="font-weight:bold; color:#333;">${statusNames[data.status] || data.status}</span>
-            `);
-
-            // 构建隐藏的详情区域
-            let html = "";
-            if (data.status !== "CE") {
-                html += `<div style="font-size:13px; color:#666; margin-bottom:12px; background:#f8f9fa; padding:8px; border-radius:4px;">
-                    <b>⏱️ 运行时间:</b> ${data.runTime.toFixed(2)} ms &nbsp;&nbsp; 
-                    <b>💾 内存占用:</b> ${data.memory.toFixed(2)} MB
-                </div>`;
-            }
-
-            if (data.stderr) {
-                html += `<div style="margin-bottom:10px;">
-                    <div style="font-size:12px; color:#c0392b; font-weight:bold; margin-bottom:4px;">[ 异常/错误日志 ]</div>
-                    <pre style="background:#fff0f0; padding:10px; border:1px solid #ffdada; border-radius:4px; color:#c0392b; font-size:12px; white-space:pre-wrap; font-family:monospace;">${data.stderr}</pre>
-                </div>`;
-            }
-
-            if (data.stdout) {
-                html += `<div style="margin-bottom:10px;">
-                    <div style="font-size:12px; color:#555; font-weight:bold; margin-bottom:4px;">[ 标准输出反馈 ]</div>
-                    <pre style="background:#fcfcfc; padding:10px; border:1px solid #ddd; border-radius:4px; color:#333; font-size:12px; white-space:pre-wrap; font-family:monospace;">${data.stdout}</pre>
-                </div>`;
-            }
-
-            if (data.cases && data.cases.length > 0) {
-                html += `<div style="margin-top:10px;"><div style="font-size:12px; color:#555; font-weight:bold; margin-bottom:6px;">[ 测试用例详情 ]</div>`;
-                html += `<div style="display:flex; flex-wrap:wrap;">`;
-                data.cases.forEach(c => {
-                    let color = (c.Status === 'AC') ? '#2ecc71' : '#e74c3c';
-                    html += `<span class="case-item" style="border-color:${color}; color:${color}" title="用例 ${c.Id}: ${c.Status}">${c.Id}</span>`;
-                });
-                html += `</div></div>`;
-            }
-
-            $("#details-section").html(html);
-            $("#btn-details").fadeIn(); // 结果出来后，显示“查看详情”按钮
+            html += `<div style="font-size:13px; color:#666; margin-bottom:12px; background:#f8f9fa; padding:8px; border-radius:4px;">
+                <b>⏱️ 运行时间:</b> ${rt} ms &nbsp;&nbsp; 
+                <b>💾 内存占用:</b> ${mem} kb
+            </div>`;
         }
-    </script>
+
+        if (data.stderr) {
+            html += `<div style="margin-bottom:10px;">
+                <div style="font-size:12px; color:#c0392b; font-weight:bold; margin-bottom:4px;">[ 异常/错误日志 ]</div>
+                <pre style="background:#fff0f0; padding:10px; border:1px solid #ffdada; border-radius:4px; color:#c0392b; font-size:12px; white-space:pre-wrap; font-family:monospace;">${data.stderr}</pre>
+            </div>`;
+        }
+
+        if (data.stdout) {
+            html += `<div style="margin-bottom:10px;">
+                <div style="font-size:12px; color:#555; font-weight:bold; margin-bottom:4px;">[ 标准输出反馈 ]</div>
+                <pre style="background:#fcfcfc; padding:10px; border:1px solid #ddd; border-radius:4px; color:#333; font-size:12px; white-space:pre-wrap; font-family:monospace;">${data.stdout}</pre>
+            </div>`;
+        }
+
+        if (data.cases && data.cases.length > 0) {
+            html += `<div style="margin-top:10px;"><div style="font-size:12px; color:#555; font-weight:bold; margin-bottom:6px;">[ 测试用例详情 ]</div>`;
+            html += `<div style="display:flex; flex-wrap:wrap;">`;
+            data.cases.forEach(c => {
+                let color = (c.status == 'AC' || c.status === 'ACCEPTED') ? '#2ecc71' : '#e74c3c';
+                html += `<span class="case-item" style="border-color:${color}; color:${color}" title="用例 ${c.case_id}: ${statusMap[c.status]}">${c.case_id}</span>`;
+            });
+            html += `</div></div>`;
+        }
+
+        $("#details-section").html(html);
+        $(".btn-details").fadeIn().text("收起详情"); // 🔥 自动显示并改为“收起”
+        
+        if(!$("#details-section").is(":visible")) {
+            $("#details-section").slideDown(200);
+        }
+    }
+</script>
 </body>
 </html>

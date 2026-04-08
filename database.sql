@@ -295,7 +295,7 @@ func main() {
 
     res := twoSum(nums, target)
     if len(res) >= 2 {
-        fmt.Printf("[%d,%d]\n", res[0], res[1])
+        fmt.Printf("[%d,%d]\\n", res[0], res[1])
     } else {
         fmt.Println("[]")
     }

@@ -10,10 +10,12 @@ import (
 	"time"
 
 	"go.uber.org/zap"
+	"golang.org/x/sync/semaphore"
 )
 
 // 实现代码的编译服务
 // 实现两种程序的编译 C++/Go
+var compileLimiter = semaphore.NewWeighted(20) // 编译阶段最多 20 并发
 
 type Type int32
 
@@ -56,6 +58,10 @@ func (c *Compiler) Compile(ctx context.Context, storagePath string) (*CompileRes
 
 // 编译
 func (c *Compiler) goCompile(ctx context.Context, storagePath string) (*CompileResult, error) {
+	if err := compileLimiter.Acquire(ctx, 1); err != nil {
+		return nil, err
+	}
+	defer compileLimiter.Release(1)
 	// 创建临时目录和文件，并且进行写入
 	tempDir, err := os.MkdirTemp(storagePath, "compile-go-") // 创建了临时文件还没有删除 运行完成bin之后删除保存 tempDir
 	if err != nil {

@@ -22,9 +22,11 @@ func (b *BaseController) Render(c *gin.Context, name string, data any) {
 }
 
 // Fail JSON失败
-func (b *BaseController) Fail(c *gin.Context, msg string) {
-	c.JSON(http.StatusOK, gin.H{
-		"msg": msg,
+func (b *BaseController) Fail(c *gin.Context, code int, err, msg string) {
+	c.JSON(code, gin.H{
+		"code":    code,
+		"message": msg,
+		"error":   err,
 	})
 }
 

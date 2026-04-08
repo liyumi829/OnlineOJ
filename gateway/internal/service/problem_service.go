@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"online-oj/gateway/internal/model/dto"
 	"online-oj/gateway/internal/model/entity"
 	"online-oj/gateway/internal/repository"
@@ -24,31 +25,31 @@ type TemplateCodeVO struct {
 }
 
 type ProblemService struct {
-	repo       *repository.Repository // 操作数据库的权柄
-	listCache  sync.Map               // 分页数据缓存 [key: page, value: 题目列表Slice]
-	totalCount int64                  // 题目总数缓存
-	countOnce  sync.Once              // 保证总数只查一次（简单处理方案，如有新增需写个方法重置它）
+	repo       *repository.ProblemRepository // 操作数据库的权柄
+	listCache  sync.Map                      // 分页数据缓存 [key: page, value: 题目列表Slice]
+	totalCount int64                         // 题目总数缓存
+	countOnce  sync.Once                     // 保证总数只查一次（简单处理方案，如有新增需写个方法重置它）
 }
 
-func NewProblemService(r *repository.Repository) *ProblemService {
+func NewProblemService(repo *repository.Repository) *ProblemService {
 	return &ProblemService{
-		repo: r,
+		repo: repository.NewProblemRepositoty(repo),
 	}
 }
 
 // 1. 获取题目总数
-func (s *ProblemService) GetAllProblemCount() int64 {
-	s.countOnce.Do(func() {
+func (ps *ProblemService) GetAllProblemCount(ctx context.Context) int64 {
+	ps.countOnce.Do(func() {
 		// 调用仓储层/数据库去真实查询一次总数
-		s.totalCount = s.repo.GetAllProblemCount()
+		ps.totalCount = ps.repo.GetAllProblemCount(ctx)
 	})
-	return s.totalCount
+	return ps.totalCount
 }
 
 // 分页获取题目列表
-func (s *ProblemService) GetProblemListByPage(page int, pageSize int) (interface{}, error) {
+func (ps *ProblemService) GetProblemListByPage(ctx context.Context, page int, pageSize int) (interface{}, error) {
 	// 1. 先看缓存有没有这页的数据
-	if cachedList, ok := s.listCache.Load(page); ok {
+	if cachedList, ok := ps.listCache.Load(page); ok {
 		return cachedList, nil
 	}
 
@@ -56,7 +57,7 @@ func (s *ProblemService) GetProblemListByPage(page int, pageSize int) (interface
 	offset := (page - 1) * pageSize
 
 	// 去数据库里查
-	list, err := s.repo.GetProblemSimpleList(offset, pageSize)
+	list, err := ps.repo.GetProblemSimpleList(ctx, offset, pageSize)
 	if err != nil {
 		return nil, err
 	}
@@ -66,18 +67,18 @@ func (s *ProblemService) GetProblemListByPage(page int, pageSize int) (interface
 	}
 
 	// 3. 把新查出来的这页的数据塞进缓存
-	s.listCache.Store(page, res)
+	ps.listCache.Store(page, res)
 
 	return res, nil
 }
 
 // GetProblemDetailVO 获取一个题目的详细描述 用于前端渲染
-func (ps *ProblemService) GetProblemDetailVO(id uint64) (*dto.ProblemDetailVO, error) {
-	problem, err := ps.repo.GetProblemByID(id) // 获取详细信息
+func (ps *ProblemService) GetProblemDetailVO(ctx context.Context, id uint64) (*dto.ProblemDetailVO, error) {
+	problem, err := ps.repo.GetProblemByID(ctx, id) // 获取详细信息
 	if err != nil {
 		return nil, err
 	}
-	templateCodes, err := ps.repo.GetTemplateCodesByProblemID(id)
+	templateCodes, err := ps.repo.GetTemplateCodesByProblemID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -99,7 +100,7 @@ func (ps *ProblemService) GetProblemDetailVO(id uint64) (*dto.ProblemDetailVO, e
 			}
 		}
 	}
-	testCases, err := ps.repo.GetSampleCases(id)
+	testCases, err := ps.repo.GetSampleCases(ctx, id)
 	sampleCases := make([]dto.TestCaseVO, 0, len(testCases))
 	for _, testCase := range testCases {
 		// 处理一下输入输出

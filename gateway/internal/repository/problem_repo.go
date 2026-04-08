@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"online-oj/gateway/internal/model/entity"
 )
 
@@ -13,20 +14,36 @@ import (
 // 4. 获取指定题目+语言的测试代码
 // 5. 获取指定题目的【样例测试用例】
 // 6. 获取指定题目【所有测试用例】（评分用）
+// 全是查询所有没有使用事务
+
+type ProblemRepository struct {
+	repo *Repository
+}
+
+func NewProblemRepositoty(repo *Repository) *ProblemRepository {
+	return &ProblemRepository{
+		repo: repo,
+	}
+}
 
 // ===================== 1. 题目相关 =====================
 
 // GetAllProblemCount 获取总共的题目数量
-func (r *Repository) GetAllProblemCount() int64 {
+func (pr *ProblemRepository) GetAllProblemCount(ctx context.Context) int64 {
 	var count int64
-	r.db.Model(&entity.Problem{}).Count(&count)
+	pr.repo.db.
+		WithContext(ctx).
+		Model(&entity.Problem{}).
+		Count(&count)
 	return count
 }
 
-// GetProblemByID 通过ID获取单个题目完整信息
-func (r *Repository) GetProblemByID(id uint64) (*entity.Problem, error) {
+// GetProblemByID 通过problemID获取单个题目完整信息
+func (pr *ProblemRepository) GetProblemByID(ctx context.Context, problemID uint64) (*entity.Problem, error) {
 	var problem entity.Problem
-	err := r.db.First(&problem, id).Error
+	err := pr.repo.db.
+		WithContext(ctx).
+		First(&problem, problemID).Error
 	return &problem, err
 }
 
@@ -37,10 +54,11 @@ func (r *Repository) GetProblemByID(id uint64) (*entity.Problem, error) {
 //	limit   取多少条
 //
 // 返回值：题目简略列表、错误
-func (r *Repository) GetProblemSimpleList(offset int, limit int) ([]entity.Problem, error) {
+func (pr *ProblemRepository) GetProblemSimpleList(ctx context.Context, offset int, limit int) ([]entity.Problem, error) {
 	var list []entity.Problem
 
-	err := r.db.
+	err := pr.repo.db.
+		WithContext(ctx).
 		Model(&entity.Problem{}).
 		Select("id", "number", "title", "star"). // 只查需要的字段
 		Order("id ASC").                         // 按 ID 正序（保证顺序不乱）
@@ -54,10 +72,11 @@ func (r *Repository) GetProblemSimpleList(offset int, limit int) ([]entity.Probl
 // ===================== 2. 模板代码相关 =====================
 
 // GetTemplateCodesByProblemID 获取指定题目所有语言模板
-func (r *Repository) GetTemplateCodesByProblemID(problemID uint64) ([]entity.ProblemLanguageTemplate, error) {
+func (pr *ProblemRepository) GetTemplateCodesByProblemID(ctx context.Context, problemID uint64) ([]entity.ProblemLanguageTemplate, error) {
 	var templates []entity.ProblemLanguageTemplate
 
-	err := r.db.
+	err := pr.repo.db.
+		WithContext(ctx).
 		Where("problem_id = ?", problemID).
 		Find(&templates).Error
 
@@ -65,9 +84,10 @@ func (r *Repository) GetTemplateCodesByProblemID(problemID uint64) ([]entity.Pro
 }
 
 // GetTestCodeByLang 获取指定题目的语言的预设和测试代码
-func (r *Repository) GetTestCodeByLang(problemID uint64, lang string) (*entity.ProblemLanguageTemplate, error) {
+func (pr *ProblemRepository) GetTestCodeByLang(ctx context.Context, problemID uint64, lang string) (*entity.ProblemLanguageTemplate, error) {
 	var codes entity.ProblemLanguageTemplate
-	err := r.db.
+	err := pr.repo.db.
+		WithContext(ctx).
 		Model(&entity.ProblemLanguageTemplate{}).
 		Select("prepend_code", "test_code").
 		Where("problem_id = ? AND language = ?", problemID, lang).
@@ -79,10 +99,11 @@ func (r *Repository) GetTestCodeByLang(problemID uint64, lang string) (*entity.P
 // ===================== 3. 测试用例相关 =====================
 
 // GetSampleCases 获取指定题目的【样例测试用例】（用户可见）
-func (r *Repository) GetSampleCases(problemID uint64) ([]entity.ProblemTestCase, error) {
+func (pr *ProblemRepository) GetSampleCases(ctx context.Context, problemID uint64) ([]entity.ProblemTestCase, error) {
 	var cases []entity.ProblemTestCase
 
-	err := r.db.
+	err := pr.repo.db.
+		WithContext(ctx).
 		Where("problem_id = ? AND is_sample = ?", problemID, true).
 		Order("sort_order ASC").
 		Find(&cases).Error
@@ -91,10 +112,11 @@ func (r *Repository) GetSampleCases(problemID uint64) ([]entity.ProblemTestCase,
 }
 
 // GetAllTestCases 获取指定题目【所有测试用例】(排序之后的)
-func (r *Repository) GetAllTestCases(problemID uint64) ([]entity.ProblemTestCase, error) {
+func (pr *ProblemRepository) GetAllTestCases(ctx context.Context, problemID uint64) ([]entity.ProblemTestCase, error) {
 	var cases []entity.ProblemTestCase
 
-	err := r.db.
+	err := pr.repo.db.
+		WithContext(ctx).
 		Where("problem_id = ?", problemID).
 		Order("sort_order ASC").
 		Find(&cases).Error
