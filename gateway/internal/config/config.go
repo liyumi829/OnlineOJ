@@ -29,6 +29,9 @@ func defaultConfig() *GatewayConfig {
 	cfg.MySQL.ParseTime = true
 	cfg.MySQL.Loc = "Local"
 
+	cfg.RPC.Addrs = []string{
+		"127.0.0.1:10000",
+	}
 	cfg.RPC.RequestTimeoutSeconds = 5
 	return cfg
 }
@@ -42,6 +45,9 @@ func mergeGatewayConfig(dst *GatewayConfig, src *rawGatewayConfig) {
 	if src.App != nil {
 		if src.App.LogPath != nil {
 			dst.App.LogPath = *src.App.LogPath
+		}
+		if src.App.ViewPath != nil {
+			dst.App.ViewPath = *src.App.ViewPath
 		}
 	}
 
@@ -73,6 +79,9 @@ func mergeGatewayConfig(dst *GatewayConfig, src *rawGatewayConfig) {
 	}
 
 	if src.RPC != nil {
+		if src.RPC.Addrs != nil {
+			dst.RPC.Addrs = *src.RPC.Addrs
+		}
 		if src.RPC.RequestTimeoutSeconds != nil {
 			dst.RPC.RequestTimeoutSeconds = *src.RPC.RequestTimeoutSeconds
 		}

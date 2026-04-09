@@ -27,7 +27,8 @@ type MySQLConfig struct {
 
 // RPCConfig RPC 配置
 type RPCConfig struct {
-	RequestTimeoutSeconds int `yaml:"request_timeout_seconds"` // RPC 请求超时秒数
+	Addrs                 []string `yaml:"addrs"`                   // Judge节点地址
+	RequestTimeoutSeconds int      `yaml:"request_timeout_seconds"` // RPC 请求超时秒数
 }
 
 // 用户合成配置
@@ -39,8 +40,9 @@ type rawGatewayConfig struct {
 }
 
 type rawAppConfig struct {
-	LogPath  *string `yaml:"log_path"`
-	ViewPath *string `yaml:"view_path"`
+	LogPath  *string   `yaml:"log_path"`
+	ViewPath *string   `yaml:"view_path"`
+	Addrs    *[]string `yaml:"addrs"`
 }
 
 type rawMySQLConfig struct {
@@ -55,5 +57,6 @@ type rawMySQLConfig struct {
 }
 
 type rawRPCConfig struct {
-	RequestTimeoutSeconds *int `yaml:"request_timeout_seconds"`
+	Addrs                 *[]string `yaml:"addrs"`
+	RequestTimeoutSeconds *int      `yaml:"request_timeout_seconds"`
 }

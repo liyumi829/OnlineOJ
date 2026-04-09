@@ -26,10 +26,10 @@ const (
 type JudgeWorker struct {
 	workerID        string                           // 当前 Worker 唯一标识
 	judgeClient     JudgeInvoker                     // gRPC Judge 客户端
+	problemProvider ProblemDataProvider              // 题目数据提供者
 	taskChan        <-chan *entity.JudgeTask         // 任务队列
 	submissionRepo  *repository.SubmissionRepository // submission 仓储
 	taskService     *service.SubmissionTaskAggregate // 组合事务服务
-	problemProvider ProblemDataProvider              // 题目数据提供者
 }
 
 // newJudgeWorker 创建 JudgeWorker 由 Manager 创建
@@ -41,17 +41,17 @@ func NewJudgeWorker(
 	judgeClient JudgeInvoker,
 	taskChan <-chan *entity.JudgeTask,
 	submissionRepo *repository.SubmissionRepository,
-	taskService *service.SubmissionTaskAggregate,
 	problemProvider ProblemDataProvider,
+	taskService *service.SubmissionTaskAggregate,
 ) *JudgeWorker {
 
 	return &JudgeWorker{
 		workerID:        workerID,
 		judgeClient:     judgeClient,
+		problemProvider: problemProvider,
 		taskChan:        taskChan,
 		submissionRepo:  submissionRepo,
 		taskService:     taskService,
-		problemProvider: problemProvider,
 	}
 }
 

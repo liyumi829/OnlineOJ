@@ -12,6 +12,16 @@ app:
   # HTML目录：Gin框架初始化的 view 路径
   view_path: gateway/internal/web/views/*.html
 
+rpc:
+  # 节点地址：judge服务的节点地址
+  addrs:
+    - 127.0.0.1:10000
+    - 127.0.0.1:10001
+    - 127.0.0.1:10002
+    # 或者更多节点
+  # Judge RPC 请求超时时间（秒）
+  request_timeout_seconds: 5
+
 mysql:
   # MySQL 主机
   host: 127.0.0.1
@@ -29,7 +39,3 @@ mysql:
   parse_time: true
   # 时区
   loc: Local
-
-rpc:
-  # Judge RPC 请求超时时间（秒）
-  request_timeout_seconds: 5

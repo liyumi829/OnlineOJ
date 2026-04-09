@@ -37,12 +37,12 @@ GATEWAY_PORT    ?= 9000
 # 判题服务监听 host
 JUDGE_HOST      ?= 127.0.0.1
 # 判题服务监听 port
-JUDGE_BASE_PORT ?= 10000
+JUDGE_PORT ?= 10000
 # 启动的判题服务数量。支持通过 make 命令行覆盖变量（如 make run JUDGE_COUNT=3）
 JUDGE_COUNT     ?= 1
 # 动态生成所有 Judge 地址（逗号分隔，例如 "127.0.0.1:10000,127.0.0.1:10001"）
 JUDGE_ADDRS = $(shell \
-	start=$(JUDGE_BASE_PORT); \
+	start=$(JUDGE_PORT); \
 	count=$(JUDGE_COUNT); \
 	end=$$((start + count - 1)); \
 	seq $$start $$end | sed 's/.*/$(JUDGE_HOST):&/' | tr '\n' ',' | sed 's/,$$//' \
@@ -54,7 +54,7 @@ JUDGE_ADDRS = $(shell \
 PROD            := prod#生产模式
 
 # 为目标
-.PHONY: all prepare gateway judge run-gateway start-gateway run-judge run-judges run stop stop-gateway stop-judges clean help
+.PHONY: all prepare gateway judge run-gateway start-gateway run-judge run-judge run stop stop-gateway stop-judge clean help
 
 all: gateway judge
 
@@ -92,8 +92,7 @@ run-gateway: gateway
 		-h "$(GATEWAY_HOST)" \
 		-p "$(GATEWAY_PORT)" \
 		-name "gateway" \
-		-id 1 \
-		-judge-addrs '$(JUDGE_ADDRS)'
+		-id "$(GATEWAY_PORT)" \
 
 # =========================
 # 后台运行 gateway
@@ -107,8 +106,7 @@ start-gateway: gateway
 		-h "$(GATEWAY_HOST)" \
 		-p "$(GATEWAY_PORT)" \
 		-name "gateway" \
-		-id 1 \
-		-judge-addrs '$(JUDGE_ADDRS)' > "$(LOG_DIR)/gateway.stdout.log" 2>&1 & \
+		-id "$(GATEWAY_PORT)" > "$(LOG_DIR)/gateway.stdout.log" 2>&1 & \
 	echo $$! > "$(PID_DIR)/gateway.pid"
 # &1 = 标准输出（stdout）的文件描述符
 # 2>&1 把标准错误（2）重定向 到 标准输出（1）所在的位置
@@ -120,43 +118,36 @@ start-gateway: gateway
 # 前台运行单个 judge
 # =========================
 run-judge: judge
-	@echo "Running judge on $(JUDGE_HOST):$(JUDGE_BASE_PORT)..."
+	@echo "Running judge on $(JUDGE_HOST):$(JUDGE_PORT)..."
 	@"$(JUDGE_BIN)" \
 		-config "$(JUDGE_CONFIG)" \
 		-config-local "$(JUDGE_LOCAL_CONFIG)" \
 		-m "$(MODE)" \
 		-h "$(JUDGE_HOST)" \
-		-p "$(JUDGE_BASE_PORT)" \
+		-p "$(JUDGE_PORT)" \
 		-name "judge" \
-		-id "$(JUDGE_BASE_PORT)"
+		-id "$(JUDGE_PORT)"
 
 # =========================
-# 后台运行多个 judge
+# 后台运行单个 judge
 # =========================
-start-judges: judge
-	@echo "Starting $(JUDGE_COUNT) judge instance(s)..."
-	@i=0; \
-	while [ $$i -lt $(JUDGE_COUNT) ]; do \
-		port=$$(( $(JUDGE_BASE_PORT) + $$i )); \
-		id=$$(( $$i + 1 )); \
-		echo "Starting judge-$$id on $(JUDGE_HOST):$$port"; \
-		"$(JUDGE_BIN)" \
-			-config "$(JUDGE_CONFIG)" \
-			-config-local "$(JUDGE_LOCAL_CONFIG)" \
-			-m "$(PROD)" \
-			-h "$(JUDGE_HOST)" \
-			-p "$$port" \
-			-name "judge-$$id" \
-			-id "$$id" > "$(LOG_DIR)/judge-$$id.stdout.log" 2>&1 & \
-		echo $$! > "$(PID_DIR)/judge-$$id.pid"; \
-		i=$$(( $$i + 1 )); \
-	done
+start-judge: judge
+	@echo "Running judge on $(JUDGE_HOST):$(JUDGE_PORT)..."
+	@"$(JUDGE_BIN)" \
+		-config "$(JUDGE_CONFIG)" \
+		-config-local "$(JUDGE_LOCAL_CONFIG)" \
+		-m "$(MODE)" \
+		-h "$(JUDGE_HOST)" \
+		-p "$(JUDGE_PORT)" \
+		-name "judge" \
+		-id "$(JUDGE_PORT)" > "$(LOG_DIR)/judge-$$id.stdout.log" 2>&1 & \
+	echo $$! > "$(PID_DIR)/judge-$(JUDGE_PORT).pid";
 
 # =========================
 # 一键启动
 # =========================
 run: gateway judge
-	@$(MAKE) start-judges JUDGE_COUNT=$(JUDGE_COUNT) JUDGE_BASE_PORT=$(JUDGE_BASE_PORT) JUDGE_HOST=$(JUDGE_HOST) MODE=$(PROD)
+	@$(MAKE) start-judge JUDGE_PORT=$(JUDGE_PORT) JUDGE_HOST=$(JUDGE_HOST) MODE=$(PROD)
 	@sleep 1
 	@$(MAKE) start-gateway \
 		GATEWAY_HOST=$(GATEWAY_HOST) \
@@ -166,6 +157,9 @@ run: gateway judge
 	@echo "Gateway started at http://$(GATEWAY_HOST):$(GATEWAY_PORT)"
 	@echo "Judge addresses: $(JUDGE_ADDRS)"
 
+# =========================
+# 关闭后台的gateway服务
+# =========================
 stop-gateway:
 	@if [ -f "$(PID_DIR)/gateway.pid" ]; then \
 		kill "$$(cat "$(PID_DIR)/gateway.pid")" 2>/dev/null || true; \
@@ -175,27 +169,28 @@ stop-gateway:
 		echo "Gateway is not running."; \
 	fi
 
-stop-judges:
-	@found=0; \
-	for f in "$(PID_DIR)"/judge-*.pid; do \
-		if [ -f "$$f" ]; then \
-			kill "$$(cat "$$f")" 2>/dev/null || true; \
-			rm -f "$$f"; \
-			found=1; \
-		fi; \
-	done; \
-	if [ $$found -eq 1 ]; then \
-		echo "All judge instances stopped."; \
+# =========================
+# 关闭后台的judge服务
+# =========================
+stop-judge:
+	@pidfile="$(PID_DIR)/judge-$(JUDGE_PORT).pid"; \
+	if [ -f "$$pidfile" ]; then \
+		pid=$$(cat "$$pidfile"); \
+		kill "$$pid" 2>/dev/null || true; \
+		rm -f "$$pidfile"; \
+		echo "Stopped judge instance on port $(JUDGE_PORT) (PID: $$pid)"; \
 	else \
-		echo "No judge instances are running."; \
+		echo "Judge is not running."; \
 	fi
 
-stop: stop-gateway stop-judges
-	@rm -fr build
-	@rm -fr temp
+# =========================
+# 一键停止
+# =========================
+stop: stop-gateway stop-judge
 
 clean: stop
 	@rm -rf "$(BUILD_DIR)"
+	@rm -fr $(TEMP_DIR)
 
 help:
 	@echo "==================== 构建与运行指南 ===================="
@@ -205,13 +200,13 @@ help:
 	@echo "  make judge            - 仅编译 judge"
 	@echo "  make all              - 编译 gateway + judge"
 	@echo ""
-	@echo "【前台运行（调试用）】"
+	@echo "【前台运行】"
 	@echo "  make run-gateway      - 前台运行 gateway（日志输出到终端，Ctrl+C 停止）"
-	@echo "  make run-judge        - 前台运行单个 judge（日志输出到终端）。Id被固定为1"
+	@echo "  make run-judge        - 前台运行单个 judge（日志输出到终端）。"
 	@echo ""
-	@echo "【后台运行（生产用）】"
+	@echo "【后台运行】"
 	@echo "  make start-gateway    - 后台启动 gateway（Gorm/Gin日志写入 logs/gateway.stdout.log）"
-	@echo "  make start-judges     - 后台启动多个 judge（数量由 JUDGE_COUNT 控制）"
+	@echo "  make start-judge      - 后台启动 judge 如果想要多节点请配置文件中部署"
 	@echo "  make run              - 一键后台启动 gateway + 所有 judge（推荐）"
 	@echo ""
 	@echo "【服务管理】"
@@ -221,23 +216,24 @@ help:
 	@echo "  make clean            - 停止服务 + 删除 build/ 目录"
 	@echo ""
 	@echo "==================== 可配置变量 ===================="
-	@echo "  MODE              - 前台运行的模式 (debug/prod)        默认: debug"
-	@echo "  GATEWAY_HOST      - Gateway 监听地址                   默认: 127.0.0.1"
-	@echo "  GATEWAY_PORT      - Gateway HTTP 端口                  默认: 9000"
-	@echo "  JUDGE_HOST        - Judge 监听地址                     默认: 127.0.0.1"
-	@echo "  JUDGE_BASE_PORT   - 首个 Judge 的 gRPC 端口            默认: 10000"
-	@echo "  JUDGE_COUNT       - Judge 实例数量                     默认: 1"
-	@echo "  JUDGE_ADDRS       - Judge 地址列表（逗号分隔），自动根据 JUDGE_HOST/JUDGE_BASE_PORT/COUNT 生成, 基于 JUDGE_BASE_PORT 逐增1"
+	@echo "  MODE              - 前台运行的模式 (debug/prod)    		    默认: debug"
+	@echo "  GATEWAY_HOST      - Gateway 监听地址         		        	  默认: 127.0.0.1"
+	@echo "  GATEWAY_PORT      - Gateway HTTP 端口          			       默认: 9000"
+	@echo "  JUDGE_HOST        - Judge 监听地址                   						默认: 127.0.0.1"
+	@echo "  JUDGE_PORT 	   - 首个 Judge 的 gRPC 端口           					   	 默认: 10000"
+	@echo "  JUDGE_ADDRS       - Judge 地址列表，一键启动时作为参数传递个gateway			默认: 127.0.0.1:10000"
 	@echo "                       （通常不需要手动设置，由 Makefile 自动计算）"
 	@echo ""
 	@echo "==================== 使用示例 ===================="
 	@echo "  # 开发调试（前台运行）"
 	@echo "  make run-gateway"
-	@echo "  make run-judge JUDGE_BASE_PORT=10001"
+	@echo "  make run-judge JUDGE_PORT=10001"
 	@echo ""
-	@echo "  # 生产启动（后台运行，2个Judge）"
-	@echo "  make run JUDGE_COUNT=2" 
-	@echo "              自动启动 prod 生产模式"
+	@echo "  # 生产启动"
+	@echo "  make run 
+	@echo "           自动启动 prod 生产模式"
+	@echo " 注意：本项目适合多节点运行，单配置make run适合本地调试，分布式适合配置文件读取"
+	@echo "   命令行参数配置优先级高于配置文件..."
 	@echo ""
 	@echo "  # 停止所有服务"
 	@echo "  make stop"

@@ -11,4 +11,6 @@ import (
 type JudgeInvoker interface {
 	// Judge 发起一次判题请求。
 	Judge(ctx context.Context, req *pb.JudgeRequest) (*pb.JudgeResponse, error)
+	// Close 关闭连接
+	Close() error
 }

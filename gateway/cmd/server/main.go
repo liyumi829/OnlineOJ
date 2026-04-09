@@ -35,8 +35,8 @@ var (
 	port         = flag.String("p", "9000", "gateway listen port")
 	instanceName = flag.String("name", "gateway", "instance name(storage log dir name)")
 	id           = flag.Uint64("id", 1, "instance id")
-	// 外部配置 -- 支持命令行/环境变量
-	judgeAddrs = flag.String("judge-addrs", "", "judge grpc addresses, comma separated") // 现在不支持多个，方便后面进行扩展
+	// 外部配置 -- 支持命令行/配置文件 命令行用于本地调试/配置文件用于生产部署。优先级：命令行 > 配置文件
+	judgeAddrs = flag.String("judge-addrs", "", "judge grpc addresses, comma separated")
 )
 
 func main() {
@@ -65,18 +65,22 @@ func main() {
 
 	// 初始化rpc客户端
 	addrs := splitJudgeAddr(*judgeAddrs) // 对地址进行解析
-	judgeClient, err := rpc.NewClinet(ctx,
-		rpc.Config{
-			Addr:           addrs[0], // 先写死使用第一个
-			RequestTimeout: time.Duration(cfg.RPC.RequestTimeoutSeconds) * time.Second,
-		},
-	) // 创建连接 conn Client
-	defer func() {
-		_ = judgeClient.Close()
-	}()
+	if len(addrs) != 0 {                 // 如果为空，使用配置文件
+		addrs = cfg.RPC.Addrs
+	}
+	connConfig, err := rpc.NewConfig(addrs, time.Duration(cfg.RPC.RequestTimeoutSeconds)*time.Second)
+	if err != nil {
+		panic(err)
+	}
+	// 配置成功创建管理者
+	judgeNodeManager, err := rpc.NewJudgeNodeManager(*connConfig)
 	if err != nil {
 		zap.L().Fatal("rpc client init failed", zap.String("error", err.Error()))
+		panic(err)
 	}
+	defer func() {
+		_ = judgeNodeManager.Close()
+	}()
 
 	// 初始化 worker，通过 worke manager 进行管理
 	workerCount := runtime.NumCPU()
@@ -84,11 +88,11 @@ func main() {
 	for i := 0; i < workerCount; i++ {
 		w := worker.NewJudgeWorker(
 			"worker-"+strconv.Itoa(i+1),
-			judgeClient, // 所有 Worker 共用同一个 gRPC client
-			nil,         // 让manager 传入
+			judgeNodeManager, // 所有 Worker 共用同一个judgeNodeManager然后自动选择节点
+			nil,              // 让manager 传入 通信通道
 			repository.NewSubmissionRepository(repo),
-			service.NewSubmissionTaskAggregate(repo),
 			repository.NewProblemRepositoty(repo),
+			service.NewSubmissionTaskAggregate(repo),
 		)
 		workers = append(workers, w)
 	}
@@ -139,7 +143,7 @@ func main() {
 	go func() {
 		zap.L().Info("gateway server starting",
 			zap.String("addr", server.Addr),
-			zap.String("judgeAddr", addrs[0]))
+			zap.Int("judgeAddrs", len(addrs)))
 
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			zap.L().Fatal("gateway server start failed", zap.String("error", err.Error()))
