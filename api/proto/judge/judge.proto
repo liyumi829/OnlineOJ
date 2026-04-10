@@ -4,7 +4,8 @@ package judge;
 option go_package = ".;judge";
 
 service JudgeService  {
-  rpc Judge (JudgeRequest) returns (JudgeResponse) {}
+  rpc Judge (JudgeRequest) returns (JudgeResponse);
+  rpc Ping(PingRequest) returns (PingResponse);
 }
 
 message CaseResult {
@@ -21,20 +22,31 @@ message TestCase {
 }
 
 message JudgeRequest {
-  string code = 1; // 用户代码
-  int32 codeType = 2; // 用户代码类型
-  int64 cpuLimit = 3; // CPU限制
-  int64 memoLimit = 4; // 内存限制
-  repeated TestCase testCases = 5; // 测试用例
+  string submission_id = 1; // 提交ID
+  string code = 2; // 用户代码
+  int32 codeType = 3; // 用户代码类型
+  int64 cpuLimit = 4; // CPU限制
+  int64 memoLimit = 5; // 内存限制
+  repeated TestCase testCases = 6; // 测试用例
 }
 
 message JudgeResponse {
-  string status = 1; // 状态 AC/WA/TLE/MLE
-  string stdout = 2; // 标准输出
-  string stderr = 3; // 标准错误
-  int64 time = 4; // 实际运行时间(ns)
-  int64 memory = 5; // 实际使用内存
-  repeated CaseResult results = 6; // 测试结果
+  string submission_id = 1; // 提交ID
+  string status = 2; // 状态 AC/WA/TLE/MLE
+  string stdout = 3; // 标准输出
+  string stderr = 4; // 标准错误
+  int64 time = 5; // 实际运行时间(ns)
+  int64 memory = 6; // 实际使用内存(kb)
+  repeated CaseResult results = 7; // 测试结果
+}
+
+message PingRequest {}
+
+message PingResponse {
+  bool ok = 1; // 服务是否可用
+  string node_id = 2; // 服务实例标识，可用于排查问题
+  int64 timestamp_ms = 3; // 当前服务时间戳（毫秒）
+  string message = 4; // 附加信息
 }
 
 //protoc --go_out=. --go_opt=paths=source_relative \

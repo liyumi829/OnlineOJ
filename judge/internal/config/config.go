@@ -18,6 +18,9 @@ func defaultConfig() *JudgeConfig {
 	cfg.App.LogPath = "./logs"
 	cfg.App.TempPath = "./temp"
 	cfg.App.GlobalTimeout = 2
+
+	cfg.Rpc.InstanceName = "judge[127.0.0.1:10000]"
+	cfg.Rpc.Addr = "127.0.0.1:10000"
 	return cfg
 }
 
@@ -35,6 +38,15 @@ func mergeJudgeConfig(dst *JudgeConfig, src *rawJudgeConfig) {
 		}
 		if src.App.GlobalTimeout != nil {
 			dst.App.GlobalTimeout = *src.App.GlobalTimeout
+		}
+	}
+
+	if src.Rpc != nil {
+		if src.Rpc.InstanceName != nil {
+			dst.Rpc.InstanceName = *src.Rpc.InstanceName
+		}
+		if src.Rpc.Addr != nil {
+			dst.Rpc.Addr = *src.Rpc.Addr
 		}
 	}
 }

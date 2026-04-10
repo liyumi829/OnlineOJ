@@ -20,6 +20,7 @@ const _ = grpc.SupportPackageIsVersion9
 
 const (
 	JudgeService_Judge_FullMethodName = "/judge.JudgeService/Judge"
+	JudgeService_Ping_FullMethodName  = "/judge.JudgeService/Ping"
 )
 
 // JudgeServiceClient is the client API for JudgeService service.
@@ -27,6 +28,7 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type JudgeServiceClient interface {
 	Judge(ctx context.Context, in *JudgeRequest, opts ...grpc.CallOption) (*JudgeResponse, error)
+	Ping(ctx context.Context, in *PingRequest, opts ...grpc.CallOption) (*PingResponse, error)
 }
 
 type judgeServiceClient struct {
@@ -47,11 +49,22 @@ func (c *judgeServiceClient) Judge(ctx context.Context, in *JudgeRequest, opts .
 	return out, nil
 }
 
+func (c *judgeServiceClient) Ping(ctx context.Context, in *PingRequest, opts ...grpc.CallOption) (*PingResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(PingResponse)
+	err := c.cc.Invoke(ctx, JudgeService_Ping_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // JudgeServiceServer is the server API for JudgeService service.
 // All implementations must embed UnimplementedJudgeServiceServer
 // for forward compatibility.
 type JudgeServiceServer interface {
 	Judge(context.Context, *JudgeRequest) (*JudgeResponse, error)
+	Ping(context.Context, *PingRequest) (*PingResponse, error)
 	mustEmbedUnimplementedJudgeServiceServer()
 }
 
@@ -64,6 +77,9 @@ type UnimplementedJudgeServiceServer struct{}
 
 func (UnimplementedJudgeServiceServer) Judge(context.Context, *JudgeRequest) (*JudgeResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Judge not implemented")
+}
+func (UnimplementedJudgeServiceServer) Ping(context.Context, *PingRequest) (*PingResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method Ping not implemented")
 }
 func (UnimplementedJudgeServiceServer) mustEmbedUnimplementedJudgeServiceServer() {}
 func (UnimplementedJudgeServiceServer) testEmbeddedByValue()                      {}
@@ -104,6 +120,24 @@ func _JudgeService_Judge_Handler(srv interface{}, ctx context.Context, dec func(
 	return interceptor(ctx, in, info, handler)
 }
 
+func _JudgeService_Ping_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PingRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(JudgeServiceServer).Ping(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: JudgeService_Ping_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(JudgeServiceServer).Ping(ctx, req.(*PingRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // JudgeService_ServiceDesc is the grpc.ServiceDesc for JudgeService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -114,6 +148,10 @@ var JudgeService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Judge",
 			Handler:    _JudgeService_Judge_Handler,
+		},
+		{
+			MethodName: "Ping",
+			Handler:    _JudgeService_Ping_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

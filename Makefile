@@ -136,11 +136,11 @@ start-judge: judge
 	@"$(JUDGE_BIN)" \
 		-config "$(JUDGE_CONFIG)" \
 		-config-local "$(JUDGE_LOCAL_CONFIG)" \
-		-m "$(MODE)" \
+		-m "$(PROD)" \
 		-h "$(JUDGE_HOST)" \
 		-p "$(JUDGE_PORT)" \
 		-name "judge" \
-		-id "$(JUDGE_PORT)" > "$(LOG_DIR)/judge-$$id.stdout.log" 2>&1 & \
+		-id "$(JUDGE_PORT)" > "$(LOG_DIR)/judge-$(JUDGE_PORT).stdout.log" 2>&1 & \
 	echo $$! > "$(PID_DIR)/judge-$(JUDGE_PORT).pid";
 
 # =========================
@@ -173,14 +173,18 @@ stop-gateway:
 # 关闭后台的judge服务
 # =========================
 stop-judge:
-	@pidfile="$(PID_DIR)/judge-$(JUDGE_PORT).pid"; \
-	if [ -f "$$pidfile" ]; then \
-		pid=$$(cat "$$pidfile"); \
-		kill "$$pid" 2>/dev/null || true; \
-		rm -f "$$pidfile"; \
-		echo "Stopped judge instance on port $(JUDGE_PORT) (PID: $$pid)"; \
+	@found=0; \
+	for f in "$(PID_DIR)"/judge-*.pid; do \
+		if [ -f "$$f" ]; then \
+			kill "$$(cat "$$f")" 2>/dev/null || true; \
+			rm -f "$$f"; \
+			found=1; \
+		fi; \
+	done; \
+	if [ $$found -eq 1 ]; then \
+		echo "All judge instances stopped."; \
 	else \
-		echo "Judge is not running."; \
+		echo "No judge instances are running."; \
 	fi
 
 # =========================

@@ -4,7 +4,7 @@ import (
 	"flag"
 	"net"
 	"online-oj/judge/internal/config"
-	"online-oj/judge/internal/execute"
+	"online-oj/judge/internal/service"
 	pkglogger "online-oj/pkg/logger"
 
 	"go.uber.org/zap"
@@ -16,8 +16,8 @@ var (
 	configLocalPath = flag.String("config-local", "judge/config/judge.local.yaml", "judge local config file path")
 	// 内部配置
 	mode         = flag.String("m", "debug", "mode: debug/prod")
-	host         = flag.String("h", "127.0.0.1", "judge listen host")
-	port         = flag.String("p", "10000", "judge listen port")
+	host         = flag.String("h", "", "judge listen host")
+	port         = flag.String("p", "", "judge listen port")
 	instanceName = flag.String("name", "judge", "instance name(storage log dir name)")
 	id           = flag.Uint64("id", 1, "instance id")
 )
@@ -35,16 +35,20 @@ func main() {
 	// 初始化日志
 	pkglogger.InitLogger(*mode, cfg.App.LogPath, *instanceName, *id)
 
-	addr := net.JoinHostPort(*host, *port)
+	if *host != "" && *port != "" { // 命令行参数优先
+		addr := net.JoinHostPort(*host, *port) // 得到地址
+		cfg.Rpc.Addr = addr
+	}
 
+	cfg.Rpc.InstanceName = *instanceName + "[" + cfg.Rpc.Addr + "]"
 	zap.L().Info("judge grpc server starting",
-		zap.String("addr", addr),
+		zap.String("addr", cfg.Rpc.Addr),
 		zap.String("logPath", cfg.App.LogPath),
 		zap.String("tempPath", cfg.App.TempPath),
 		zap.Uint64("instanceId", *id),
 	)
 
-	if err := execute.StartGRPCServer(addr, &cfg.App); err != nil {
+	if err := service.StartGRPCServer(*cfg); err != nil {
 		zap.L().Fatal("server failed to start", zap.String("error", err.Error()))
 	}
 }

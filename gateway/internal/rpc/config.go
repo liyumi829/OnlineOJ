@@ -1,34 +1,32 @@
 package rpc
 
 import (
-	"errors"
 	"time"
 )
 
 // Config 是 RPC Client 配置
 type Config struct {
-	Addrs          []string      // Addrs 是多个 Judge 服务地址。
-	RequestTimeout time.Duration // RequestTimeout 是单次 RPC 请求超时时间。
+	Addrs             []string      // Addrs 是多个 Judge 服务地址。
+	RequestTimeout    time.Duration // RequestTimeout 是单次 RPC 请求超时时间。
+	HeartbeatTimeout  time.Duration // 健康检查 RPC 超时
+	HeartbeatInterval time.Duration // 健康检查扫描间隔
+	FailureThreshold  int           // 连续失败阈值
 }
 
-// setDefault 为Config设置默认值
-func (c *Config) setDefault() {
+// Default 为Config设置默认值
+func Default() *Config {
+	c := &Config{}
 	if c.RequestTimeout <= 0 {
-		c.RequestTimeout = 5 * time.Second
+		c.RequestTimeout = 2 * time.Second
 	}
-}
-
-// NewJudgeNodesConfig
-func NewConfig(Addrs []string, timeout time.Duration) (*Config, error) {
-	if len(Addrs) == 0 {
-		return nil, errors.New("Addrs is empty.")
+	if c.HeartbeatTimeout <= 0 {
+		c.HeartbeatTimeout = 2 * time.Second // 超时时间 2 s
 	}
-	config := &Config{}
-
-	config.setDefault()
-	config.Addrs = Addrs
-	if timeout != 0 {
-		config.RequestTimeout = timeout
+	if c.HeartbeatInterval <= 0 {
+		c.HeartbeatInterval = 5 * time.Second // 每5s进行一次检测
 	}
-	return config, nil
+	if c.FailureThreshold <= 0 {
+		c.FailureThreshold = 3 // 默认连续失败阈值为3
+	}
+	return c
 }

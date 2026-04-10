@@ -9,3 +9,7 @@ app:
   log_path: ./logs # 日志目录
   temp_path: ./temp # 判题临时目录
   global_timeout: 1 # 全局判题超时时间
+
+rpc:
+  instance_name: ""
+  addr: 127.0.0.1:10000 # 监听的地址

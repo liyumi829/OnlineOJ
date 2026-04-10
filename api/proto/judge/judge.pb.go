@@ -151,11 +151,12 @@ func (x *TestCase) GetOutput() string {
 
 type JudgeRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Code          string                 `protobuf:"bytes,1,opt,name=code,proto3" json:"code,omitempty"`            // 用户代码
-	CodeType      int32                  `protobuf:"varint,2,opt,name=codeType,proto3" json:"codeType,omitempty"`   // 用户代码类型
-	CpuLimit      int64                  `protobuf:"varint,3,opt,name=cpuLimit,proto3" json:"cpuLimit,omitempty"`   // CPU限制
-	MemoLimit     int64                  `protobuf:"varint,4,opt,name=memoLimit,proto3" json:"memoLimit,omitempty"` // 内存限制
-	TestCases     []*TestCase            `protobuf:"bytes,5,rep,name=testCases,proto3" json:"testCases,omitempty"`  // 测试用例
+	SubmissionId  string                 `protobuf:"bytes,1,opt,name=submission_id,json=submissionId,proto3" json:"submission_id,omitempty"` // 提交ID
+	Code          string                 `protobuf:"bytes,2,opt,name=code,proto3" json:"code,omitempty"`                                     // 用户代码
+	CodeType      int32                  `protobuf:"varint,3,opt,name=codeType,proto3" json:"codeType,omitempty"`                            // 用户代码类型
+	CpuLimit      int64                  `protobuf:"varint,4,opt,name=cpuLimit,proto3" json:"cpuLimit,omitempty"`                            // CPU限制
+	MemoLimit     int64                  `protobuf:"varint,5,opt,name=memoLimit,proto3" json:"memoLimit,omitempty"`                          // 内存限制
+	TestCases     []*TestCase            `protobuf:"bytes,6,rep,name=testCases,proto3" json:"testCases,omitempty"`                           // 测试用例
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -188,6 +189,13 @@ func (x *JudgeRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use JudgeRequest.ProtoReflect.Descriptor instead.
 func (*JudgeRequest) Descriptor() ([]byte, []int) {
 	return file_judge_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *JudgeRequest) GetSubmissionId() string {
+	if x != nil {
+		return x.SubmissionId
+	}
+	return ""
 }
 
 func (x *JudgeRequest) GetCode() string {
@@ -227,12 +235,13 @@ func (x *JudgeRequest) GetTestCases() []*TestCase {
 
 type JudgeResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Status        string                 `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`   // 状态 AC/WA/TLE/MLE
-	Stdout        string                 `protobuf:"bytes,2,opt,name=stdout,proto3" json:"stdout,omitempty"`   // 标准输出
-	Stderr        string                 `protobuf:"bytes,3,opt,name=stderr,proto3" json:"stderr,omitempty"`   // 标准错误
-	Time          int64                  `protobuf:"varint,4,opt,name=time,proto3" json:"time,omitempty"`      // 实际运行时间(ns)
-	Memory        int64                  `protobuf:"varint,5,opt,name=memory,proto3" json:"memory,omitempty"`  // 实际使用内存
-	Results       []*CaseResult          `protobuf:"bytes,6,rep,name=results,proto3" json:"results,omitempty"` // 测试结果
+	SubmissionId  string                 `protobuf:"bytes,1,opt,name=submission_id,json=submissionId,proto3" json:"submission_id,omitempty"` // 提交ID
+	Status        string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`                                 // 状态 AC/WA/TLE/MLE
+	Stdout        string                 `protobuf:"bytes,3,opt,name=stdout,proto3" json:"stdout,omitempty"`                                 // 标准输出
+	Stderr        string                 `protobuf:"bytes,4,opt,name=stderr,proto3" json:"stderr,omitempty"`                                 // 标准错误
+	Time          int64                  `protobuf:"varint,5,opt,name=time,proto3" json:"time,omitempty"`                                    // 实际运行时间(ns)
+	Memory        int64                  `protobuf:"varint,6,opt,name=memory,proto3" json:"memory,omitempty"`                                // 实际使用内存(kb)
+	Results       []*CaseResult          `protobuf:"bytes,7,rep,name=results,proto3" json:"results,omitempty"`                               // 测试结果
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -265,6 +274,13 @@ func (x *JudgeResponse) ProtoReflect() protoreflect.Message {
 // Deprecated: Use JudgeResponse.ProtoReflect.Descriptor instead.
 func (*JudgeResponse) Descriptor() ([]byte, []int) {
 	return file_judge_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *JudgeResponse) GetSubmissionId() string {
+	if x != nil {
+		return x.SubmissionId
+	}
+	return ""
 }
 
 func (x *JudgeResponse) GetStatus() string {
@@ -309,6 +325,110 @@ func (x *JudgeResponse) GetResults() []*CaseResult {
 	return nil
 }
 
+type PingRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PingRequest) Reset() {
+	*x = PingRequest{}
+	mi := &file_judge_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PingRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PingRequest) ProtoMessage() {}
+
+func (x *PingRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_judge_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PingRequest.ProtoReflect.Descriptor instead.
+func (*PingRequest) Descriptor() ([]byte, []int) {
+	return file_judge_proto_rawDescGZIP(), []int{4}
+}
+
+type PingResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Ok            bool                   `protobuf:"varint,1,opt,name=ok,proto3" json:"ok,omitempty"`                                      // 服务是否可用
+	NodeId        string                 `protobuf:"bytes,2,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`                 // 服务实例标识，可用于排查问题
+	TimestampMs   int64                  `protobuf:"varint,3,opt,name=timestamp_ms,json=timestampMs,proto3" json:"timestamp_ms,omitempty"` // 当前服务时间戳（毫秒）
+	Message       string                 `protobuf:"bytes,4,opt,name=message,proto3" json:"message,omitempty"`                             // 附加信息
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PingResponse) Reset() {
+	*x = PingResponse{}
+	mi := &file_judge_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PingResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PingResponse) ProtoMessage() {}
+
+func (x *PingResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_judge_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PingResponse.ProtoReflect.Descriptor instead.
+func (*PingResponse) Descriptor() ([]byte, []int) {
+	return file_judge_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *PingResponse) GetOk() bool {
+	if x != nil {
+		return x.Ok
+	}
+	return false
+}
+
+func (x *PingResponse) GetNodeId() string {
+	if x != nil {
+		return x.NodeId
+	}
+	return ""
+}
+
+func (x *PingResponse) GetTimestampMs() int64 {
+	if x != nil {
+		return x.TimestampMs
+	}
+	return 0
+}
+
+func (x *PingResponse) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
 var File_judge_proto protoreflect.FileDescriptor
 
 const file_judge_proto_rawDesc = "" +
@@ -323,22 +443,31 @@ const file_judge_proto_rawDesc = "" +
 	"\x06output\x18\x05 \x01(\tR\x06output\"8\n" +
 	"\bTestCase\x12\x14\n" +
 	"\x05input\x18\x01 \x01(\tR\x05input\x12\x16\n" +
-	"\x06output\x18\x02 \x01(\tR\x06output\"\xa7\x01\n" +
-	"\fJudgeRequest\x12\x12\n" +
-	"\x04code\x18\x01 \x01(\tR\x04code\x12\x1a\n" +
-	"\bcodeType\x18\x02 \x01(\x05R\bcodeType\x12\x1a\n" +
-	"\bcpuLimit\x18\x03 \x01(\x03R\bcpuLimit\x12\x1c\n" +
-	"\tmemoLimit\x18\x04 \x01(\x03R\tmemoLimit\x12-\n" +
-	"\ttestCases\x18\x05 \x03(\v2\x0f.judge.TestCaseR\ttestCases\"\xb0\x01\n" +
-	"\rJudgeResponse\x12\x16\n" +
-	"\x06status\x18\x01 \x01(\tR\x06status\x12\x16\n" +
-	"\x06stdout\x18\x02 \x01(\tR\x06stdout\x12\x16\n" +
-	"\x06stderr\x18\x03 \x01(\tR\x06stderr\x12\x12\n" +
-	"\x04time\x18\x04 \x01(\x03R\x04time\x12\x16\n" +
-	"\x06memory\x18\x05 \x01(\x03R\x06memory\x12+\n" +
-	"\aresults\x18\x06 \x03(\v2\x11.judge.CaseResultR\aresults2D\n" +
-	"\fJudgeService\x124\n" +
-	"\x05Judge\x12\x13.judge.JudgeRequest\x1a\x14.judge.JudgeResponse\"\x00B\tZ\a.;judgeb\x06proto3"
+	"\x06output\x18\x02 \x01(\tR\x06output\"\xcc\x01\n" +
+	"\fJudgeRequest\x12#\n" +
+	"\rsubmission_id\x18\x01 \x01(\tR\fsubmissionId\x12\x12\n" +
+	"\x04code\x18\x02 \x01(\tR\x04code\x12\x1a\n" +
+	"\bcodeType\x18\x03 \x01(\x05R\bcodeType\x12\x1a\n" +
+	"\bcpuLimit\x18\x04 \x01(\x03R\bcpuLimit\x12\x1c\n" +
+	"\tmemoLimit\x18\x05 \x01(\x03R\tmemoLimit\x12-\n" +
+	"\ttestCases\x18\x06 \x03(\v2\x0f.judge.TestCaseR\ttestCases\"\xd5\x01\n" +
+	"\rJudgeResponse\x12#\n" +
+	"\rsubmission_id\x18\x01 \x01(\tR\fsubmissionId\x12\x16\n" +
+	"\x06status\x18\x02 \x01(\tR\x06status\x12\x16\n" +
+	"\x06stdout\x18\x03 \x01(\tR\x06stdout\x12\x16\n" +
+	"\x06stderr\x18\x04 \x01(\tR\x06stderr\x12\x12\n" +
+	"\x04time\x18\x05 \x01(\x03R\x04time\x12\x16\n" +
+	"\x06memory\x18\x06 \x01(\x03R\x06memory\x12+\n" +
+	"\aresults\x18\a \x03(\v2\x11.judge.CaseResultR\aresults\"\r\n" +
+	"\vPingRequest\"t\n" +
+	"\fPingResponse\x12\x0e\n" +
+	"\x02ok\x18\x01 \x01(\bR\x02ok\x12\x17\n" +
+	"\anode_id\x18\x02 \x01(\tR\x06nodeId\x12!\n" +
+	"\ftimestamp_ms\x18\x03 \x01(\x03R\vtimestampMs\x12\x18\n" +
+	"\amessage\x18\x04 \x01(\tR\amessage2s\n" +
+	"\fJudgeService\x122\n" +
+	"\x05Judge\x12\x13.judge.JudgeRequest\x1a\x14.judge.JudgeResponse\x12/\n" +
+	"\x04Ping\x12\x12.judge.PingRequest\x1a\x13.judge.PingResponseB\tZ\a.;judgeb\x06proto3"
 
 var (
 	file_judge_proto_rawDescOnce sync.Once
@@ -352,20 +481,24 @@ func file_judge_proto_rawDescGZIP() []byte {
 	return file_judge_proto_rawDescData
 }
 
-var file_judge_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_judge_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_judge_proto_goTypes = []any{
 	(*CaseResult)(nil),    // 0: judge.CaseResult
 	(*TestCase)(nil),      // 1: judge.TestCase
 	(*JudgeRequest)(nil),  // 2: judge.JudgeRequest
 	(*JudgeResponse)(nil), // 3: judge.JudgeResponse
+	(*PingRequest)(nil),   // 4: judge.PingRequest
+	(*PingResponse)(nil),  // 5: judge.PingResponse
 }
 var file_judge_proto_depIdxs = []int32{
 	1, // 0: judge.JudgeRequest.testCases:type_name -> judge.TestCase
 	0, // 1: judge.JudgeResponse.results:type_name -> judge.CaseResult
 	2, // 2: judge.JudgeService.Judge:input_type -> judge.JudgeRequest
-	3, // 3: judge.JudgeService.Judge:output_type -> judge.JudgeResponse
-	3, // [3:4] is the sub-list for method output_type
-	2, // [2:3] is the sub-list for method input_type
+	4, // 3: judge.JudgeService.Ping:input_type -> judge.PingRequest
+	3, // 4: judge.JudgeService.Judge:output_type -> judge.JudgeResponse
+	5, // 5: judge.JudgeService.Ping:output_type -> judge.PingResponse
+	4, // [4:6] is the sub-list for method output_type
+	2, // [2:4] is the sub-list for method input_type
 	2, // [2:2] is the sub-list for extension type_name
 	2, // [2:2] is the sub-list for extension extendee
 	0, // [0:2] is the sub-list for field type_name
@@ -382,7 +515,7 @@ func file_judge_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_judge_proto_rawDesc), len(file_judge_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

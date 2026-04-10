@@ -68,12 +68,13 @@ func main() {
 	if len(addrs) != 0 {                 // 如果为空，使用配置文件
 		addrs = cfg.RPC.Addrs
 	}
-	connConfig, err := rpc.NewConfig(addrs, time.Duration(cfg.RPC.RequestTimeoutSeconds)*time.Second)
-	if err != nil {
-		panic(err)
-	}
+
+	rpcConfig := rpc.Default() // 获取默认配置
+	rpcConfig.Addrs = addrs
+	// 其余参数使用默认配置
+
 	// 配置成功创建管理者
-	judgeNodeManager, err := rpc.NewJudgeNodeManager(*connConfig)
+	judgeNodeManager, err := rpc.NewJudgeNodeManager(context.Background(), rpcConfig)
 	if err != nil {
 		zap.L().Fatal("rpc client init failed", zap.String("error", err.Error()))
 		panic(err)
