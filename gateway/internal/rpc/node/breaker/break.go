@@ -42,7 +42,7 @@ func (b *CircuitBreaker) IsAllow() error {
 	defer b.mu.Unlock()
 
 	now := time.Now()
-	zap.L().Debug("breaker:", zap.String("state", b.state.String()))
+	zap.L().Debug("[rpc][breaker]", zap.String("state", b.state.String()))
 	switch b.state { // 判断当前熔断器状态
 
 	case CircuitClosed:

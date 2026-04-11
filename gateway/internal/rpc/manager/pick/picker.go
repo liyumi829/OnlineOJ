@@ -46,6 +46,6 @@ func (p *RoundRobinPicker) Pick(nodes []*node.JudgeNode, excluded map[string]str
 		break
 	}
 
-	zap.L().Debug("pick a node", zap.String("addr", node.Addr), zap.String("breaker_stat", node.CircuitBreaker.State().String()))
+	zap.L().Debug("[rpc][picker]pick a node", zap.String("addr", node.Addr), zap.String("breaker_stat", node.CircuitBreaker.State().String()))
 	return node, nil
 }

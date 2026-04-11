@@ -80,21 +80,21 @@ func (m *JudgeNodeManager) InvokeJudgeWithRetry(
 	call func(context.Context, *node.JudgeNode, *pb.JudgeRequest) (*pb.JudgeResponse, error),
 ) (*pb.JudgeResponse, error) {
 	if m == nil {
-		zap.L().Error("JudgeNodeManager is nil")
+		zap.L().Error("[rpc][manager]JudgeNodeManager is nil")
 		return nil, errors.New("node manager is nil")
 	}
 	if req == nil {
-		zap.L().Error("Judge request is nil")
+		zap.L().Error("[rpc][manager]Judge request is nil")
 		return nil, errors.New("judge request is nil")
 	}
 	if call == nil {
-		zap.L().Error("Judge RPC call function is nil")
+		zap.L().Error("[rpc][manager]Judge RPC call function is nil")
 		return nil, errors.New("judge rpc call func is nil")
 	}
 
 	maxRetries := m.retryPolicy.MaxRetries()
 	totalAttempts := maxRetries + 1
-	zap.L().Info("Start judge RPC with retry",
+	zap.L().Info("[rpc][manager]Start judge RPC with retry",
 		zap.Int("max_retries", maxRetries),
 		zap.Int("total_attempts", totalAttempts))
 
@@ -110,9 +110,9 @@ func (m *JudgeNodeManager) InvokeJudgeWithRetry(
 			zap.Int("total_attempts", totalAttempts)) // 携带第几次重试的日志器
 
 		if attempt > 0 {
-			attemptLog.Debug("Waiting before next judge RPC attempt")
+			attemptLog.Debug("[rpc][manager]Waiting before next judge RPC attempt")
 			if err := m.retryPolicy.Wait(ctx, attempt); err != nil { // 重试等待
-				attemptLog.Error("Retry wait failed", zap.Error(err))
+				attemptLog.Error("[rpc][manager]Retry wait failed", zap.Error(err))
 				return nil, err
 			}
 		}
@@ -122,7 +122,7 @@ func (m *JudgeNodeManager) InvokeJudgeWithRetry(
 			// 下面进行双重判断：避免节点数少于重试次数时无法继续
 			// 如果排除后找不到节点，则允许清空 excluded 再尝试一次
 			if err == pick.ErrNoAvailableNode && len(excluded) > 0 {
-				attemptLog.Warn("No available nodes with exclusion, clearing excluded nodes",
+				attemptLog.Warn("[rpc][manager]No available nodes with exclusion, clearing excluded nodes",
 					zap.Int("excluded_count", len(excluded)))
 
 				excluded = make(map[string]struct{}, totalAttempts) // 情况标记的节点
@@ -132,7 +132,7 @@ func (m *JudgeNodeManager) InvokeJudgeWithRetry(
 			// 这里再次判断上面的重新选择节点是否选择成功
 			if err != nil {
 				if lastErr != nil {
-					attemptLog.Error("No available judge node after attempts",
+					attemptLog.Error("[rpc][manager]No available judge node after attempts",
 						zap.Error(err),
 						zap.NamedError("last_error", lastErr))
 
@@ -146,23 +146,23 @@ func (m *JudgeNodeManager) InvokeJudgeWithRetry(
 		excluded[node.Addr] = struct{}{}                                 // 标记该节点已经选择过了
 		attemptLog = attemptLog.With(zap.String("node_addr", node.Addr)) // 已经选择节点的地址日志器
 
-		attemptLog.Info("Invoking judge RPC on node")
+		attemptLog.Info("[rpc][manager]Invoking judge RPC on node")
 		resp, err := call(ctx, node, req) // 执行rpc调用
 
 		// 如果调用成功
 		if err == nil {
-			node.MarkBizSuccess()                  // 标记该节点调用成功
-			attemptLog.Info("Judge RPC succeeded") // 记录调用成功日志
-			return resp, nil                       // 返回结构
+			node.MarkBizSuccess()                                // 标记该节点调用成功
+			attemptLog.Info("[rpc][manager]Judge RPC succeeded") // 记录调用成功日志
+			return resp, nil                                     // 返回结构
 		}
 
-		node.MarkBizFailure(err)                                  // 该节点调用失败
-		lastErr = err                                             // 记录最新的一次错误
-		attemptLog.Error("Judge RPC call failed", zap.Error(err)) // 日志记录
+		node.MarkBizFailure(err)                                                // 该节点调用失败
+		lastErr = err                                                           // 记录最新的一次错误
+		attemptLog.Error("[rpc][manager]Judge RPC call failed", zap.Error(err)) // 日志记录
 	}
 
 	// 如果重试次数内没有完成，本次调用失败
-	zap.L().Error("Judge RPC failed after all attempts",
+	zap.L().Error("[rpc][manager]Judge RPC failed after all attempts",
 		zap.Int("total_attempts", totalAttempts),
 		zap.NamedError("last_error", lastErr))
 

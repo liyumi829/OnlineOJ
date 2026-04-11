@@ -44,7 +44,7 @@ func (h *PingHealthChecker) Start(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
-			zap.L().Info("[rpc][heartbeat] checker stopped")
+			zap.L().Info("[rpc][health] checker stopped")
 			return
 		case <-ticker.C:
 			h.CheckAllNodes(ctx)
@@ -80,7 +80,7 @@ func (h *PingHealthChecker) checkOne(ctx context.Context, node *node.JudgeNode) 
 	resp, err := node.Client.Ping(probeCtx, &pb.PingRequest{})
 	if err != nil {
 		node.MarkHeartbeatFailure(err)
-		zap.L().Warn("[rpc][heartbeat] ping failed",
+		zap.L().Warn("[rpc][health] ping failed",
 			zap.String("addr", node.Addr),
 			zap.String("node info", node.String()),
 			zap.String("error", err.Error()))
@@ -89,7 +89,7 @@ func (h *PingHealthChecker) checkOne(ctx context.Context, node *node.JudgeNode) 
 
 	if resp == nil || !resp.GetOk() {
 		node.MarkHeartbeatFailure(errInvalidPingResponse) // 标记心跳失败
-		zap.L().Warn("[rpc][heartbeat] ping invalid response",
+		zap.L().Warn("[rpc][health] ping invalid response",
 			zap.String("addr", node.Addr),
 			zap.String("instance_name", resp.GetNodeId()),
 			zap.String("message", resp.GetMessage()))
@@ -97,9 +97,9 @@ func (h *PingHealthChecker) checkOne(ctx context.Context, node *node.JudgeNode) 
 	}
 
 	node.MarkHeartbeatSuccess() // 标记心跳成功
-	// zap.L().Debug("[rpc][heartbeat] ping success",
-	// 	zap.String("addr", node.Addr),
-	// 	zap.String("instance_name", resp.GetNodeId()),
-	// 	zap.String("time", time.UnixMilli(resp.GetTimestampMs()).Format("2006-01-02 15:04:05")),
-	// 	zap.String("message", resp.Message))
+	zap.L().Debug("[rpc][health] ping success",
+		zap.String("addr", node.Addr),
+		zap.String("instance_name", resp.GetNodeId()),
+		zap.String("time", time.UnixMilli(resp.GetTimestampMs()).Format("2006-01-02 15:04:05")),
+		zap.String("message", resp.Message))
 }

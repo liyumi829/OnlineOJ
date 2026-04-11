@@ -59,11 +59,11 @@ func NewJudgeNode(addr string, conn *grpc.ClientConn, client pb.JudgeServiceClie
 // Judge 业务处理
 func (n *JudgeNode) Judge(ctx context.Context, req *pb.JudgeRequest) (*pb.JudgeResponse, error) {
 	if req == nil {
-		zap.L().Error("judge request is nil")
+		zap.L().Error("[rpc][node]judge request is nil")
 		return nil, errors.New("judge request is nil")
 	}
 
-	resp, err := n.Client.Judge(ctx, req)
+	resp, err := n.Client.Judge(ctx, req) // 真正调用业务逻辑
 	if err != nil {
 		return nil, fmt.Errorf("rpc judge call failed: %w", err)
 	}
