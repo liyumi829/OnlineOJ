@@ -35,6 +35,7 @@ var (
 	port         = flag.String("p", "9000", "gateway listen port")
 	instanceName = flag.String("name", "gateway", "instance name(storage log dir name)")
 	id           = flag.Uint64("id", 1, "instance id")
+	workerNumber = flag.Int("w", runtime.NumCPU(), "the number of concurrent worker goroutines is used to limit RPC call traffic")
 	// 外部配置 -- 支持命令行/配置文件 命令行用于本地调试/配置文件用于生产部署。优先级：命令行 > 配置文件
 	judgeAddrs = flag.String("judge-addrs", "", "judge grpc addresses, comma separated")
 )
@@ -69,28 +70,30 @@ func main() {
 		addrs = cfg.RPC.Addrs
 	}
 
-	rpcConfig := rpc.Default() // 获取默认配置
-	rpcConfig.Addrs = addrs
-	// 其余参数使用默认配置
+	rpcConfig := &rpc.RpcClientManagerConfig{
+		Addrs: addrs,
+		// 其余参数使用默认参数
+	}
 
 	// 配置成功创建管理者
-	judgeNodeManager, err := rpc.NewJudgeNodeManager(context.Background(), rpcConfig)
+	rpcClientManager, err := rpc.NewRpcClientManager(context.Background(), rpcConfig)
 	if err != nil {
 		zap.L().Fatal("rpc client init failed", zap.String("error", err.Error()))
 		panic(err)
 	}
 	defer func() {
-		_ = judgeNodeManager.Close()
+		_ = rpcClientManager.Close()
 	}()
 
 	// 初始化 worker，通过 worke manager 进行管理
-	workerCount := runtime.NumCPU()
+	workerCount := *workerNumber
+	// workerCount := len(addrs) * runtime.NumCPU() // 并发量建议根据后台 judge 服务个数进行调整
 	workers := make([]*worker.JudgeWorker, 0, workerCount)
 	for i := 0; i < workerCount; i++ {
 		w := worker.NewJudgeWorker(
 			"worker-"+strconv.Itoa(i+1),
-			judgeNodeManager, // 所有 Worker 共用同一个judgeNodeManager然后自动选择节点
-			nil,              // 让manager 传入 通信通道
+			rpcClientManager, // 所有 Worker 共用同一个 rpcClientManager 然后自动选择节点
+			nil,              // 让 manager 传入 通信通道
 			repository.NewSubmissionRepository(repo),
 			repository.NewProblemRepositoty(repo),
 			service.NewSubmissionTaskAggregate(repo),
@@ -101,7 +104,7 @@ func main() {
 	workerManager, err := worker.NewJudgeWorkerManager(
 		repository.NewJudgeTaskRepository(repo),
 		workers,
-		20,
+		5*workerCount, // 五倍的缓冲区大小
 		1*time.Second,
 	)
 	if err != nil {

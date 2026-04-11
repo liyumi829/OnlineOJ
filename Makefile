@@ -37,16 +37,18 @@ GATEWAY_PORT    ?= 9000
 # 判题服务监听 host
 JUDGE_HOST      ?= 127.0.0.1
 # 判题服务监听 port
-JUDGE_PORT ?= 10000
+JUDGE_PORT 		?= 10000
 # 启动的判题服务数量。支持通过 make 命令行覆盖变量（如 make run JUDGE_COUNT=3）
 JUDGE_COUNT     ?= 1
 # 动态生成所有 Judge 地址（逗号分隔，例如 "127.0.0.1:10000,127.0.0.1:10001"）
-JUDGE_ADDRS = $(shell \
-	start=$(JUDGE_PORT); \
-	count=$(JUDGE_COUNT); \
-	end=$$((start + count - 1)); \
-	seq $$start $$end | sed 's/.*/$(JUDGE_HOST):&/' | tr '\n' ',' | sed 's/,$$//' \
-)
+JUDGE_ADDRS 	?= $(shell \
+		start=$(JUDGE_PORT); \
+		count=$(JUDGE_COUNT); \
+		end=$$((start + count - 1)); \
+		seq $$start $$end | sed 's/.*/$(JUDGE_HOST):&/' | tr '\n' ',' | sed 's/,$$//' \
+	)
+# CPU核心数，用于启动并发的工作 goroutine 数量
+WORKER_NUMBER 	?= $(shell nproc 2>/dev/null || sysctl -nhw.ncpu 2>/dev/null || echo 1)
 
 # =========================
 # 固定参数
@@ -93,6 +95,7 @@ run-gateway: gateway
 		-p "$(GATEWAY_PORT)" \
 		-name "gateway" \
 		-id "$(GATEWAY_PORT)" \
+		-w "$(WORKER_NUMBER)"
 
 # =========================
 # 后台运行 gateway
@@ -106,7 +109,8 @@ start-gateway: gateway
 		-h "$(GATEWAY_HOST)" \
 		-p "$(GATEWAY_PORT)" \
 		-name "gateway" \
-		-id "$(GATEWAY_PORT)" > "$(LOG_DIR)/gateway.stdout.log" 2>&1 & \
+		-id "$(GATEWAY_PORT)" \
+		-w "$(WORKER_NUMBER)" > "$(LOG_DIR)/gateway.stdout.log" 2>&1 & \
 	echo $$! > "$(PID_DIR)/gateway.pid"
 # &1 = 标准输出（stdout）的文件描述符
 # 2>&1 把标准错误（2）重定向 到 标准输出（1）所在的位置
@@ -227,6 +231,7 @@ help:
 	@echo "  JUDGE_PORT 	   - 首个 Judge 的 gRPC 端口           					   	 默认: 10000"
 	@echo "  JUDGE_ADDRS       - Judge 地址列表，一键启动时作为参数传递个gateway			默认: 127.0.0.1:10000"
 	@echo "                       （通常不需要手动设置，由 Makefile 自动计算）"
+	@echo "  WORKER_NUMBER     - 启动的工作 goroutine 数量、一般由后台的judge数量和CPU核心数决定 默认 1"
 	@echo ""
 	@echo "==================== 使用示例 ===================="
 	@echo "  # 开发调试（前台运行）"
