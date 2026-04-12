@@ -114,3 +114,11 @@ func (m *JudgeWorkerManager) dispatch(ctx context.Context) {
 		}
 	}
 }
+
+// CloseAllConnect 关闭所有的连接
+func (m *JudgeWorkerManager) CloseAllConnect() {
+	if m == nil {
+		return
+	}
+	m.workers[0].judgeClient.Close() // 选择其中一个节点进行关闭即可
+}

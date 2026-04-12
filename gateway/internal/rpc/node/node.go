@@ -6,8 +6,6 @@ import (
 	"errors"
 	"fmt"
 	pb "online-oj/api/proto/judge"
-	"online-oj/gateway/internal/rpc/node/breaker"
-	"sync"
 	"time"
 
 	"go.uber.org/zap"
@@ -17,42 +15,30 @@ import (
 // rpc 调用的单个节点
 type JudgeNode struct {
 	Addr   string                // 节点地址
-	Conn   *grpc.ClientConn      // 节点连接
-	Client pb.JudgeServiceClient // 连接客户端
-	mu     sync.Mutex            // 互斥锁，并发安全
+	conn   *grpc.ClientConn      // 节点连接
+	client pb.JudgeServiceClient // 连接客户端
 
 	// 健康状态
+	health *HealthyStatus
 
-	heartbeatHealthy       bool      // 健康状态
-	lastHeartbeatSuccessAt time.Time // 最近一次心跳成功时间
-	lastHeartbeatFailAt    time.Time // 最近一次心跳失败时间
-	lastHeartbeatErr       error     // 最近一次心跳错误
+	// 业务状态
+	business *BusinessStatus
 
-	// 业务处理
-
-	CircuitBreaker   BreakerInvoker // 熔断器
-	lastBizSuccessAt time.Time      // 上次成功时间
-	lastBizFailAt    time.Time      // 上次失败时间
-	lastBizErr       error          // 上次错误信息
+	// 运行时指标
+	metrics *RuntimeMetrics
 }
 
 // NewJudgeNode 创建一个judge节点
 //
 // 默认该节点是不健康的状态需要进行ping/pong心跳检测
-func NewJudgeNode(addr string, conn *grpc.ClientConn, client pb.JudgeServiceClient, circuitBreaker BreakerInvoker) *JudgeNode {
-	now := time.Now()
+func NewJudgeNode(addr string, conn *grpc.ClientConn, client pb.JudgeServiceClient, breaker BreakerInvoker) *JudgeNode {
 	return &JudgeNode{
-		Addr:                   addr,
-		Conn:                   conn,
-		Client:                 client,
-		heartbeatHealthy:       false, // 初始未知，等待第一次心跳探测
-		lastHeartbeatSuccessAt: time.Time{},
-		lastHeartbeatFailAt:    time.Time{},
-		lastHeartbeatErr:       nil,
-		CircuitBreaker:         circuitBreaker,
-		lastBizSuccessAt:       now,
-		lastBizFailAt:          time.Time{},
-		lastBizErr:             nil,
+		Addr:     addr,
+		conn:     conn,
+		client:   client,
+		health:   NewHealthyStatus(),
+		business: NewBusinessStatus(breaker),
+		metrics:  NewRuntimeMetrics(),
 	}
 }
 
@@ -63,131 +49,120 @@ func (n *JudgeNode) Judge(ctx context.Context, req *pb.JudgeRequest) (*pb.JudgeR
 		return nil, errors.New("judge request is nil")
 	}
 
-	resp, err := n.Client.Judge(ctx, req) // 真正调用业务逻辑
+	resp, err := n.client.Judge(ctx, req) // 真正调用业务逻辑
 	if err != nil {
 		return nil, fmt.Errorf("rpc judge call failed: %w", err)
 	}
 	return resp, nil
 }
 
+// Ping 进行心跳检测
+func (n *JudgeNode) Ping(ctx context.Context, req *pb.PingRequest) (*pb.PingResponse, error) {
+	if req == nil {
+		zap.L().Error("[rpc][node]ping request is nil")
+		return nil, errors.New("ping request is nil")
+	}
+
+	resp, err := n.client.Ping(ctx, req) // 调用方法
+	if err != nil {
+		return nil, fmt.Errorf("rpc ping call failed: %w", err)
+	}
+	return resp, nil
+}
+
 // Close 关闭底层连接。
 func (n *JudgeNode) Close() error {
-	n.mu.Lock()
-	defer n.mu.Unlock()
-	if n.Conn == nil {
+	if n.conn == nil {
 		return nil
 	}
-	return n.Conn.Close()
+	return n.conn.Close()
+}
+
+// AllowBusinessRequest 判断节点是否允许承接业务请求
+func (n *JudgeNode) AllowBusinessRequest() error {
+	if n == nil {
+		return errors.New("judge node is nil")
+	}
+	if n.health == nil || !n.health.IsHealthy() {
+		return ErrHeartbeatUnhealthy
+	}
+	if n.business == nil {
+		return nil
+	}
+	return n.business.AllowRequest()
 }
 
 // MarkHeartbeatSuccess 标记心跳成功
 func (n *JudgeNode) MarkHeartbeatSuccess() {
-	n.mu.Lock()
-	defer n.mu.Unlock()
-
-	n.heartbeatHealthy = true
-	n.lastHeartbeatSuccessAt = time.Now()
-	n.lastHeartbeatErr = nil
+	if n == nil || n.health == nil {
+		return
+	}
+	n.health.MarkHeartbeatSuccess()
 }
 
 // MarkHeartbeatFailure 标记心跳失败
 func (n *JudgeNode) MarkHeartbeatFailure(err error) {
-	n.mu.Lock()
-	defer n.mu.Unlock()
-
-	n.heartbeatHealthy = false
-	n.lastHeartbeatFailAt = time.Now()
-	n.lastHeartbeatErr = err
+	if n == nil || n.health == nil {
+		return
+	}
+	n.health.MarkHeartbeatFailure(err)
 }
 
-// IsHeartbeatHealthy 返回节点心跳状态
-func (n *JudgeNode) IsHeartbeatHealthy() bool {
-	n.mu.Lock()
-	defer n.mu.Unlock()
-	return n.heartbeatHealthy
+// StartRequest 标记请求开始
+func (n *JudgeNode) StartRequest() {
+	if n == nil || n.metrics == nil {
+		return
+	}
+	n.metrics.StartRequest()
 }
 
-// IsHealthy 返回节点的健康状态
-func (n *JudgeNode) IsHealthy() bool {
-	n.mu.Lock()
-	defer n.mu.Unlock()
-
-	return n.heartbeatHealthy
-}
-
-// AllowBusinessRequest 判断该节点是否允许承接业务请求
-func (n *JudgeNode) AllowBusinessRequest() error {
+// FinishRequest 标记请求结束
+func (n *JudgeNode) FinishRequest(success bool, timeout bool, latency time.Duration, err error) {
 	if n == nil {
-		return breaker.ErrCircuitOpen
+		return
 	}
-	if !n.IsHeartbeatHealthy() {
-		return ErrHeartbeatUnhealthy
-	}
-	if n.CircuitBreaker == nil {
-		return nil
-	}
-	return n.CircuitBreaker.IsAllow()
-}
 
-// MarkBizSuccess 标记业务成功
-func (n *JudgeNode) MarkBizSuccess() {
-	n.mu.Lock()
-	n.lastBizSuccessAt = time.Now()
-	n.lastBizErr = nil
-	n.mu.Unlock()
+	if n.metrics != nil {
+		n.metrics.FinishRequest(success, timeout, latency)
+	}
 
-	if n.CircuitBreaker != nil {
-		n.CircuitBreaker.OnSuccess()
+	if n.business != nil {
+		if success {
+			n.business.MarkBizSuccess()
+		} else {
+			n.business.MarkBizFailure(err)
+		}
 	}
 }
 
-// MarkBizFailure 标记业务处理失败
-func (n *JudgeNode) MarkBizFailure(err error) {
-	n.mu.Lock()
-
-	n.lastBizErr = err
-	n.lastBizFailAt = time.Now()
-	n.mu.Unlock()
-
-	if n.CircuitBreaker != nil {
-		n.CircuitBreaker.OnFailure(err)
+// ActiveRequests 返回当前活跃请求数
+func (n *JudgeNode) ActiveRequests() int64 {
+	if n == nil || n.metrics == nil {
+		return 0
 	}
+	return n.metrics.ActiveRequests()
 }
 
-// String() 实现 fmt.Stringer 接口，格式化输出
-func (n *JudgeNode) String() string {
-	n.mu.Lock()
-	defer n.mu.Unlock()
-	// 健康状态显示
-	healthyStr := "✅ HEALTHY"
-	if !n.heartbeatHealthy {
-		healthyStr = "❌ UNHEALTHY"
+// HealthSnapshot 返回健康状态快照
+func (n *JudgeNode) HealthSnapshot() HealthyStatusSnapshot {
+	if n == nil || n.health == nil {
+		return HealthyStatusSnapshot{}
 	}
+	return n.health.Snapshot()
+}
 
-	// 错误信息：有错误显示，没有显示 <none>
-	var lastErrStr string
-	if n.lastHeartbeatErr != nil {
-		lastErrStr = n.lastHeartbeatErr.Error()
-	} else {
-		lastErrStr = "<none>"
+// BusinessSnapshot 返回业务状态快照
+func (n *JudgeNode) BusinessSnapshot() BusinessStatusSnapshot {
+	if n == nil || n.business == nil {
+		return BusinessStatusSnapshot{}
 	}
+	return n.business.Snapshot()
+}
 
-	// 时间格式化：零值显示 <nil>
-	timeFmt := "2006-01-02 15:04:05"
-	lastFailAtStr := n.lastHeartbeatFailAt.Format(timeFmt)
-	if n.lastHeartbeatFailAt.IsZero() {
-		lastFailAtStr = "<nil>"
+// MetricsSnapshot 返回指标快照
+func (n *JudgeNode) MetricsSnapshot() RuntimeMetricsSnapshot {
+	if n == nil || n.metrics == nil {
+		return RuntimeMetricsSnapshot{}
 	}
-	lastSuccessAtStr := n.lastHeartbeatSuccessAt.Format(timeFmt)
-	if n.lastHeartbeatSuccessAt.IsZero() {
-		lastSuccessAtStr = "<nil>"
-	}
-
-	return fmt.Sprintf(
-		"Status: %s | Last Error: %s | Last Fail: %s | Last Success: %s",
-		healthyStr,
-		lastErrStr,
-		lastFailAtStr,
-		lastSuccessAtStr,
-	)
+	return n.metrics.Snapshot()
 }

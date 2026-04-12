@@ -70,19 +70,18 @@ func (h *PingHealthChecker) CheckAllNodes(ctx context.Context) {
 
 // checkOne 检查单个节点
 func (h *PingHealthChecker) checkOne(ctx context.Context, node *node.JudgeNode) {
-	if node == nil || node.Client == nil {
+	if node == nil {
 		return
 	}
 
 	probeCtx, cancel := context.WithTimeout(ctx, h.timeout)
 	defer cancel()
 
-	resp, err := node.Client.Ping(probeCtx, &pb.PingRequest{})
+	resp, err := node.Ping(probeCtx, &pb.PingRequest{})
 	if err != nil {
-		node.MarkHeartbeatFailure(err)
+		node.MarkHeartbeatFailure(err) // 标记心跳失败
 		zap.L().Warn("[rpc][health] ping failed",
 			zap.String("addr", node.Addr),
-			zap.String("node info", node.String()),
 			zap.String("error", err.Error()))
 		return
 	}

@@ -115,6 +115,7 @@ func main() {
 	go func() { // 正式启动 manager
 		zap.L().Info("[gateway] worker manager started")
 		workerManager.Run(ctx)
+		workerManager.CloseAllConnect() // 退出的时候关闭所有连接
 		zap.L().Info("[gateway] worker manager stopped")
 	}()
 

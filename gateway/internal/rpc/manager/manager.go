@@ -10,6 +10,7 @@ import (
 	"online-oj/gateway/internal/rpc/manager/pick"
 	"online-oj/gateway/internal/rpc/manager/retry"
 	"online-oj/gateway/internal/rpc/node"
+	"time"
 
 	"go.uber.org/zap"
 )
@@ -104,7 +105,6 @@ func (m *JudgeNodeManager) InvokeJudgeWithRetry(
 
 	// 根据退避策略进行重试选择节点进行执行
 	for attempt := 0; attempt < totalAttempts; attempt++ {
-
 		attemptLog := zap.L().With(
 			zap.Int("attempt", attempt+1),
 			zap.Int("total_attempts", totalAttempts)) // 携带第几次重试的日志器
@@ -146,19 +146,32 @@ func (m *JudgeNodeManager) InvokeJudgeWithRetry(
 		excluded[node.Addr] = struct{}{}                                 // 标记该节点已经选择过了
 		attemptLog = attemptLog.With(zap.String("node_addr", node.Addr)) // 已经选择节点的地址日志器
 
-		attemptLog.Info("[rpc][manager]Invoking judge RPC on node")
+		// 记录请求开始
+		node.StartRequest()
+		zap.L().Debug("[rpc][manager]Invoking judge RPC on node",
+			zap.String("addr", node.Addr),
+			zap.Int64("active", node.ActiveRequests()))
+		startAt := time.Now()
 		resp, err := call(ctx, node, req) // 执行rpc调用
+		latency := time.Since(startAt)    // 调用时间
+		timeout := isTimeoutError(err)    // 是否超时
+		success := err == nil             // 是否成功
+		node.FinishRequest(success, timeout, latency, err)
 
-		// 如果调用成功
 		if err == nil {
-			node.MarkBizSuccess()                                // 标记该节点调用成功
-			attemptLog.Info("[rpc][manager]Judge RPC succeeded") // 记录调用成功日志
-			return resp, nil                                     // 返回结构
+			zap.L().Warn("[rpc][manager] invoke judge success",
+				zap.String("addr", node.Addr),
+				zap.Int64("active", node.ActiveRequests()))
+			return resp, nil
 		}
+		lastErr = err
 
-		node.MarkBizFailure(err)                                                // 该节点调用失败
-		lastErr = err                                                           // 记录最新的一次错误
-		attemptLog.Error("[rpc][manager]Judge RPC call failed", zap.Error(err)) // 日志记录
+		zap.L().Warn("[rpc][manager] invoke judge failed",
+			zap.String("addr", node.Addr),
+			zap.Int("attempt", attempt+1),
+			zap.Int("total_attempts", totalAttempts),
+			zap.Int64("active", node.ActiveRequests()),
+			zap.Error(err))
 	}
 
 	// 如果重试次数内没有完成，本次调用失败
@@ -177,10 +190,10 @@ func (m *JudgeNodeManager) Close() error {
 
 	var firstErr error
 	for _, n := range m.nodes {
-		if n == nil || n.Conn == nil {
+		if n == nil {
 			continue
 		}
-		if err := n.Conn.Close(); err != nil && firstErr == nil {
+		if err := n.Close(); err != nil && firstErr == nil {
 			firstErr = err
 		}
 	}

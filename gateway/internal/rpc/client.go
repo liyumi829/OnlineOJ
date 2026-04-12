@@ -61,7 +61,7 @@ func NewRpcClientManager(ctx context.Context, cfg *RpcClientManagerConfig) (*Rpc
 		cfg.HeartbeatInterval,
 	)
 
-	picker := pick.NewRoundRobinPicker()
+	picker := pick.NewLeastActivePicker()
 
 	retryPolicy := retry.NewExponentialRetryPolicy(
 		cfg.MaxRetries,
@@ -113,13 +113,14 @@ func (m *RpcClientManager) Judge(ctx context.Context, req *pb.JudgeRequest) (*pb
 			rpcCtx, cancel := context.WithTimeout(parent, m.requestTimeout)
 			defer cancel()
 
-			resp, err := n.Client.Judge(rpcCtx, r)
+			resp, err := n.Judge(rpcCtx, r)
 			if err != nil {
 				zap.L().Error("judge rpc failed",
 					zap.String("addr", n.Addr),
-					zap.String("breaker_state", n.CircuitBreaker.State().String()),
+					zap.Int64("active", n.ActiveRequests()),
+					zap.String("breaker_state", n.BusinessSnapshot().BreakerState.String()),
 					zap.Error(err))
-				return nil, fmt.Errorf("judge rpc failed, addr=%s, breaker_state=%s, err=%w", n.Addr, n.CircuitBreaker.State().String(), err)
+				return nil, fmt.Errorf("judge rpc failed, addr=%s, breaker_state=%s: %w", n.Addr, n.BusinessSnapshot().BreakerState.String(), err)
 			}
 
 			return resp, nil
