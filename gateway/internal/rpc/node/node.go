@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	pb "online-oj/api/proto/judge"
+	"online-oj/gateway/internal/rpc/node/breaker"
+	"sync"
 	"time"
 
 	"go.uber.org/zap"
@@ -26,6 +28,11 @@ type JudgeNode struct {
 
 	// 运行时指标
 	metrics *RuntimeMetrics
+
+	// 预热状态
+
+	warmupMu    sync.Mutex // warm-up 状态锁
+	warmupUntil time.Time  // warm-up 截止时间，零值表示不在 warm-up
 }
 
 // NewJudgeNode 创建一个judge节点
@@ -117,7 +124,7 @@ func (n *JudgeNode) StartRequest() {
 }
 
 // FinishRequest 标记请求结束
-func (n *JudgeNode) FinishRequest(success bool, timeout bool, latency time.Duration, err error) {
+func (n *JudgeNode) FinishRequest(success bool, timeout bool, latency time.Duration, err error, warmup time.Duration) {
 	if n == nil {
 		return
 	}
@@ -127,12 +134,43 @@ func (n *JudgeNode) FinishRequest(success bool, timeout bool, latency time.Durat
 	}
 
 	if n.business != nil {
+		before := n.business.BreakerState() // 记录当前的熔断器状态
 		if success {
 			n.business.MarkBizSuccess()
 		} else {
 			n.business.MarkBizFailure(err)
 		}
+		after := n.business.BreakerState() // 记录标记后的熔断器状态
+		// 请求结束，如果一个请求是在 half-open状态结束的，就需要进入预热状态，不能打太多的请求到该节点上
+		// HalfOpen -> Closed 成功恢复后进入 warm-up
+		if before == breaker.CircuitHalfOpen && after == breaker.CircuitClosed && success && warmup > 0 {
+			n.EnterWarmup(warmup) // 成功并且状态进行转变，进入预热状态
+		}
 	}
+}
+
+// EnterWarmup 进入 warm-up（预热状态）
+func (n *JudgeNode) EnterWarmup(duration time.Duration) {
+	if n == nil || duration <= 0 {
+		return
+	}
+
+	n.warmupMu.Lock()
+	defer n.warmupMu.Unlock()
+
+	n.warmupUntil = time.Now().Add(duration)
+}
+
+// InWarmup 判断当前节点是否处于预热状态
+func (n *JudgeNode) InWarmup() bool {
+	if n == nil {
+		return false
+	}
+
+	n.warmupMu.Lock()
+	defer n.warmupMu.Unlock()
+
+	return !n.warmupUntil.IsZero() && time.Now().Before(n.warmupUntil)
 }
 
 // ActiveRequests 返回当前活跃请求数

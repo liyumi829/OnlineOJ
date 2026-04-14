@@ -1,19 +1,37 @@
 package rpc
 
 import (
+	"online-oj/gateway/internal/rpc/manager/pick"
 	"time"
+)
+
+// LoadBalanceStrategy 表示负载均衡策略
+type LoadBalanceStrategy string
+
+const (
+	// StrategyRoundRobin 轮询
+	StrategyRoundRobin LoadBalanceStrategy = "round_robin"
+
+	// StrategyLeastActive 最少活跃请求
+	StrategyLeastActive LoadBalanceStrategy = "least_active"
+
+	// StrategyScore 综合评分选择
+	StrategyScore LoadBalanceStrategy = "score"
 )
 
 // Config 是 RPC Client 配置
 type RpcClientManagerConfig struct {
-	Addrs                   []string        // Addrs 是多个 Judge 服务地址。
-	RequestTimeout          time.Duration   // RequestTimeout 是单次 RPC 请求超时时间。
-	HeartbeatTimeout        time.Duration   // 健康检查 RPC 超时
-	HeartbeatInterval       time.Duration   // 健康检查扫描间隔
-	CircuitBreakOpenTimeout time.Duration   // 熔断器开启时间
-	FailureThreshold        int             // 连续失败阈值
-	MaxRetries              int             // 例如 MaxRetries=2 表示：首次调用 + 最多 2 次重试
-	RetryBackoffs           []time.Duration // 重试退避时间列表
+	Addrs                   []string               // Addrs 是多个 Judge 服务地址。
+	RequestTimeout          time.Duration          // RequestTimeout 是单次 RPC 请求超时时间。
+	HeartbeatTimeout        time.Duration          // 健康检查 RPC 超时
+	HeartbeatInterval       time.Duration          // 健康检查扫描间隔
+	CircuitBreakOpenTimeout time.Duration          // 熔断器开启时间
+	FailureThreshold        int                    // 连续失败阈值
+	MaxRetries              int                    // 例如 MaxRetries=2 表示：首次调用 + 最多 2 次重试
+	RetryBackoffs           []time.Duration        // 重试退避时间列表
+	WarmupDuration          time.Duration          // 节点恢复之后的预热期
+	LoadBalanceStrategy     LoadBalanceStrategy    // 负载均衡策略
+	ScorePickerConfig       pick.ScorePickerConfig // ScorePicker 配置
 }
 
 // Default 为Config设置默认值
@@ -30,12 +48,17 @@ func (c *RpcClientManagerConfig) SetDefault() {
 	if c.CircuitBreakOpenTimeout <= 0 {
 		c.CircuitBreakOpenTimeout = 5 * time.Second // 熔断时长 5 s
 	}
-	// 最大重试次数 < 0 不进行重试 == 0 默认重试 2次
+	// 最大重试次数 < 0 不进行重试
+	// == 0 默认重试 2次
 	if c.MaxRetries < 0 {
 		c.MaxRetries = 0
 	}
 	if c.MaxRetries == 0 {
 		c.MaxRetries = 2
+	}
+	if c.WarmupDuration <= 0 {
+		// 节点恢复后的预热期
+		c.WarmupDuration = 10 * time.Second // 默认 10s
 	}
 	if len(c.RetryBackoffs) == 0 {
 		c.RetryBackoffs = []time.Duration{
@@ -43,4 +66,9 @@ func (c *RpcClientManagerConfig) SetDefault() {
 			200 * time.Millisecond,
 		}
 	}
+	if c.LoadBalanceStrategy == "" {
+		c.LoadBalanceStrategy = StrategyScore
+	}
+
+	c.ScorePickerConfig.SetDefault() // 设置默认值
 }

@@ -8,7 +8,7 @@ import (
 	pb "online-oj/api/proto/judge"
 	"online-oj/gateway/internal/rpc/manager"
 	"online-oj/gateway/internal/rpc/manager/health"
-	pick "online-oj/gateway/internal/rpc/manager/pick"
+	"online-oj/gateway/internal/rpc/manager/pick"
 	"online-oj/gateway/internal/rpc/manager/retry"
 	"online-oj/gateway/internal/rpc/node"
 	"online-oj/gateway/internal/rpc/node/breaker"
@@ -61,7 +61,17 @@ func NewRpcClientManager(ctx context.Context, cfg *RpcClientManagerConfig) (*Rpc
 		cfg.HeartbeatInterval,
 	)
 
-	picker := pick.NewLeastActivePicker()
+	var picker manager.Picker // 接口，选择一个负载均衡策略
+	switch cfg.LoadBalanceStrategy {
+	case StrategyRoundRobin:
+		picker = pick.NewRoundRobinPicker()
+	case StrategyLeastActive:
+		picker = pick.NewLeastActivePicker()
+	case StrategyScore:
+		fallthrough
+	default:
+		picker = pick.NewScorePicker(cfg.ScorePickerConfig)
+	}
 
 	retryPolicy := retry.NewExponentialRetryPolicy(
 		cfg.MaxRetries,
@@ -73,6 +83,7 @@ func NewRpcClientManager(ctx context.Context, cfg *RpcClientManagerConfig) (*Rpc
 		picker,
 		healthChecker,
 		retryPolicy,
+		cfg.WarmupDuration,
 	)
 	if err != nil {
 		return nil, err

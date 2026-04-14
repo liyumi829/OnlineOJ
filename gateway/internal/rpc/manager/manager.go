@@ -29,6 +29,8 @@ type JudgeNodeManager struct {
 	healthChecker HealthChecker
 	// 调用失败重试策略
 	retryPolicy RetryPolicy
+	// 预热时长
+	warmupDuration time.Duration
 }
 
 // NewJudgeNodeManager 构造节点管理者
@@ -36,7 +38,9 @@ func NewJudgeNodeManager(
 	nodes []*node.JudgeNode,
 	picker Picker,
 	healthChecker HealthChecker,
-	retryPolicy RetryPolicy) (*JudgeNodeManager, error) {
+	retryPolicy RetryPolicy,
+	warmupDuration time.Duration,
+) (*JudgeNodeManager, error) {
 	if len(nodes) == 0 {
 		return nil, errors.New("node manager requires at least one node")
 	}
@@ -51,10 +55,11 @@ func NewJudgeNodeManager(
 		retryPolicy = retry.NewExponentialRetryPolicy(2, nil)
 	}
 	return &JudgeNodeManager{
-		nodes:         nodes,
-		picker:        picker,
-		healthChecker: healthChecker,
-		retryPolicy:   retryPolicy,
+		nodes:          nodes,
+		picker:         picker,
+		healthChecker:  healthChecker,
+		retryPolicy:    retryPolicy,
+		warmupDuration: warmupDuration,
 	}, nil
 }
 
@@ -156,7 +161,7 @@ func (m *JudgeNodeManager) InvokeJudgeWithRetry(
 		latency := time.Since(startAt)    // 调用时间
 		timeout := isTimeoutError(err)    // 是否超时
 		success := err == nil             // 是否成功
-		node.FinishRequest(success, timeout, latency, err)
+		node.FinishRequest(success, timeout, latency, err, m.warmupDuration)
 
 		if err == nil {
 			zap.L().Warn("[rpc][manager] invoke judge success",
