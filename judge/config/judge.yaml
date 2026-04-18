@@ -13,3 +13,13 @@ app:
 rpc:
   instance_name: ""
   addr: 127.0.0.1:10000 # 监听的地址
+
+redis:
+  addrs:
+    - 127.0.0.1:6379  # Redis 地址，集群写多个
+  password: ""         # 密码，没有就空
+  db: 0                # 数据库，集群只能用0
+
+  # 连接池（生产环境必须）
+  poolSize: 100        # 最大连接数
+  minIdleConns: 10    # 最小空闲连接

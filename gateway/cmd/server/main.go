@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"online-oj/gateway/cmd/router"
+	"online-oj/gateway/internal/cache"
 	"online-oj/gateway/internal/config"
 	"online-oj/gateway/internal/control"
 	"online-oj/gateway/internal/repository"
@@ -84,7 +85,8 @@ func main() {
 	defer func() {
 		_ = rpcClientManager.Close()
 	}()
-
+	// 创建缓存
+	submissionQueryCache := cache.NewPollCache(-1) // 默认配置
 	// 初始化 worker，通过 worke manager 进行管理
 	workerCount := *workerNumber
 	// workerCount := len(addrs) * runtime.NumCPU() // 并发量建议根据后台 judge 服务个数进行调整
@@ -97,6 +99,7 @@ func main() {
 			repository.NewSubmissionRepository(repo),
 			repository.NewProblemRepositoty(repo),
 			service.NewSubmissionTaskAggregate(repo),
+			submissionQueryCache,
 		)
 		workers = append(workers, w)
 	}
@@ -122,7 +125,7 @@ func main() {
 	// 初始化业务服务及其对应的控制器
 	problemService := service.NewProblemService(repo)
 	submitService := service.NewSubmitService(repo)
-	submissionQueryService := service.NewSubmissionQueryService(repo)
+	submissionQueryService := service.NewSubmissionQueryService(repo, submissionQueryCache)
 	problemCtl := control.NewProblemController(problemService)
 	judgeCtl := control.NewJudgeController(submitService, submissionQueryService)
 
@@ -157,19 +160,16 @@ func main() {
 	// 退出信号
 	<-quit
 	zap.L().Info("[gateway] shutdown signal received")
-
-	// 发出取消信号，通知后台 WorkerManager 停止轮询与调度
-	cancel()
-
-	// 优雅关闭 HTTP 服务（最多等待 10 秒）
-	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	cancel() // 发出取消信号，通知后台 WorkerManager 停止轮询与调度
+	// 优雅关闭 HTTP 服务（最多等待 5 秒）
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer shutdownCancel()
 
 	if err := server.Shutdown(shutdownCtx); err != nil {
 		zap.L().Error("[gateway] http server shutdown failed",
 			zap.String("error", err.Error()))
 	}
-
+	submissionQueryCache.Close() // 关闭缓存
 	zap.L().Info("[gateway] exited")
 }
 

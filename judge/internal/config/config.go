@@ -21,6 +21,14 @@ func defaultConfig() *JudgeConfig {
 
 	cfg.Rpc.InstanceName = "judge[127.0.0.1:10000]"
 	cfg.Rpc.Addr = "127.0.0.1:10000"
+
+	cfg.Redis.Addrs = []string{
+		"127.0.0.1:6379",
+	}
+	cfg.Redis.Password = ""
+	cfg.Redis.DB = 0
+	cfg.Redis.PoolSize = 100
+	cfg.Redis.MinIdleConns = 10
 	return cfg
 }
 
@@ -47,6 +55,24 @@ func mergeJudgeConfig(dst *JudgeConfig, src *rawJudgeConfig) {
 		}
 		if src.Rpc.Addr != nil {
 			dst.Rpc.Addr = *src.Rpc.Addr
+		}
+	}
+
+	if src.Redis != nil {
+		if src.Redis.Addrs != nil {
+			dst.Redis.Addrs = *src.Redis.Addrs
+		}
+		if src.Redis.Password != nil {
+			dst.Redis.Password = *src.Redis.Password
+		}
+		if src.Redis.DB != nil {
+			dst.Redis.DB = *src.Redis.DB
+		}
+		if src.Redis.PoolSize != nil {
+			dst.Redis.PoolSize = *src.Redis.PoolSize
+		}
+		if src.Redis.MinIdleConns != nil {
+			dst.Redis.MinIdleConns = *src.Redis.MinIdleConns
 		}
 	}
 }

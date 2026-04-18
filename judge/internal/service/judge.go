@@ -3,17 +3,75 @@ package service
 import (
 	"context"
 	"fmt"
+	"log"
 	"online-oj/api/proto/judge"
+	"online-oj/judge/internal/cache"
 	"online-oj/judge/internal/compile"
 	"online-oj/judge/internal/run"
+	"sync/atomic"
 	"time"
 
 	"go.uber.org/zap"
 )
 
-// 判题
+// 全局计数器：真正执行判题的次数（没有命中任何缓存）
+var realJudgeCount atomic.Int64
+
+// Judge 带有缓存的判题
 func (s *JudgeServer) Judge(ctx context.Context, req *judge.JudgeRequest) (*judge.JudgeResponse, error) {
+	// 1. 构造缓存 KEY
+	key := cache.BuildReuseKey(cache.ReuseKeyInput{
+		ProblemID:       0,                                    // 题目ID
+		Language:        getLanguageString(req.GetCodeType()), // 语言
+		Code:            req.GetCode(),                        // 代码
+		TestcaseVersion: "v1",                                 // 测试用例
+		RuntimeVersion:  "go 1.25.5",                          // 编译器版本号
+	})
+
+	// 2. 先查缓存
+	result, found, err := s.cache.Get(ctx, key)
+	if err != nil {
+		// 缓存出错，不影响主流程，直接跳过
+		zap.L().Warn("cache get failed", zap.Error(err))
+	}
+	if found && result != nil {
+		// 缓存命中！直接返回
+		zap.L().Info("judge result cache HIT", zap.String("key", key))
+		return toJudgeResponse(result), nil
+	}
+
+	// 3. 缓存未命中 → singleflight 防止并发判题
+	res, err, _ := s.cache.DoWithSingleflight(key, func() (*cache.CachedJudgeResult, error) {
+		// 真正执行判题（调用你原来的函数）
+		resp, err := s.realJudge(ctx, req)
+		if err != nil {
+			return nil, err
+		}
+
+		// 转成缓存结构
+		cached := toCachedResult(resp)
+
+		// 写入缓存
+		if err := s.cache.Set(ctx, key, cached); err != nil {
+			zap.L().Error("cache set failed", zap.Error(err))
+		}
+
+		return cached, nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	// 4. 返回结果
+	return toJudgeResponse(res), nil
+}
+
+// realJudge 执行真正的判题逻辑
+func (s *JudgeServer) realJudge(ctx context.Context, req *judge.JudgeRequest) (*judge.JudgeResponse, error) {
 	// 日志：判题开始
+	realJudgeCount.Add(1) // 统计判题次数
+	log.Println("真实判题次数：", realJudgeCount.Load())
 	zap.L().Info("judge server start processing judge request",
 		zap.Int32("code_type", req.GetCodeType()),
 		zap.Int("test_case_count", len(req.GetTestCases())),
@@ -26,7 +84,6 @@ func (s *JudgeServer) Judge(ctx context.Context, req *judge.JudgeRequest) (*judg
 		)
 		return nil, fmt.Errorf("user submit a unknown code type, type code: %d", req.GetCodeType())
 	}
-
 	// 日志：代码类型校验通过
 	zap.L().Debug("code type check passed")
 
@@ -115,15 +172,4 @@ func (s *JudgeServer) Judge(ctx context.Context, req *judge.JudgeRequest) (*judg
 	)
 
 	return rsp, nil
-}
-
-func getCodeType(value int32) compile.Type {
-	switch value {
-	case 1:
-		return compile.GoType
-	case 2:
-		return compile.CppType
-	default:
-	}
-	return compile.UnKnownType
 }
