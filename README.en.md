@@ -1,36 +1,27 @@
-# 在线OJ
+# Online OJ
+## Introduction
+A web-based online OJ project imitating LeetCode.
 
-#### Description
-仿LeetCode的网页在线OJ项目
+## Software Architecture
+- Web Frontend: CSS + JavaScript
+- Backend Services:
+  1. MVC Service: Gin Framework + GORM ORM + RPC Invocation + MySQL
+  2. Background Judge Service Node: RPC Server + Redis
 
-#### Software Architecture
-Software architecture description
+## Installation Guide
+- Linux environment required (Docker sandbox execution environment is not implemented in this project and will be added in later iterations).
 
-#### Installation
+The entire project is compiled and deployed via Makefile. See details: `make help`
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+## Instructions for Use
+1. Middleware configurations of this project are mainly read from configuration files (yaml configuration merging is implemented in `pkg/config`):
+   - `OnlineOj/gateway/config`: Sensitive information such as MySQL passwords are stored in `config.local.yaml`.
+   - `OnlineOj/judge/config`: Sensitive information are stored in `config.local.yaml`.
 
-#### Instructions
+2. The upper-layer service invokes lower-layer judge nodes through RPC, implementing **node management**: heartbeat mechanism, circuit breaking, rate limiting, load balancing and other strategies.
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+However, a better approach is to use RabbitMQ for task publishing to implement asynchronous processing, which has not been completed in this project yet.
 
-#### Contribution
+Before official use, tests are required to find the appropriate number of concurrent upper-layer requests matching the receiving capacity of lower-layer nodes. Adjust the `WORKER_NUMBER` configuration of the gateway.
 
-1.  Fork the repository
-2.  Create Feat_xxx branch
-3.  Commit your code
-4.  Create Pull Request
-
-
-#### Gitee Feature
-
-1.  You can use Readme\_XXX.md to support different languages, such as Readme\_en.md, Readme\_zh.md
-2.  Gitee blog [blog.gitee.com](https://blog.gitee.com)
-3.  Explore open source project [https://gitee.com/explore](https://gitee.com/explore)
-4.  The most valuable open source project [GVP](https://gitee.com/gvp)
-5.  The manual of Gitee [https://gitee.com/help](https://gitee.com/help)
-6.  The most popular members  [https://gitee.com/gitee-stars/](https://gitee.com/gitee-stars/)
+Example: On a standalone 4-core 4GB server, the recommended optimal value for `WORKER_NUMBER` is **10**.
